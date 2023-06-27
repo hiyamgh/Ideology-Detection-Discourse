@@ -1,0 +1,16 @@
+Given the sentence displayed below, please do the following steps, in order, for every sentence:
+ 1- For each word, generate its part of speech
+ 2- Extract all the entities (Noun, Pronouns, Proper nouns, adjective modifiers) in the sentence
+ 3- Extract all entites that co-refer to the entities extracted above, if any, in the sentence
+ 4- Generate the dependencies between each extracted entity and the adjectives/adverbs/verbs/nouns used.
+ 5- Given the dependencies generated above, analyze how each entity is framed.
+
+The sentences are displayed below:
+- We Expect Palestinian  fighters to threaten Israeli borders
+- Christians helped expel the PLO from Lebanon
+- It is to weaken Shiites who determine the Christian control of Lebanon
+- The unity of the PLO and its legitimate struggle to restore usurped rights and lands
+- Israel's aggressive practices against the people
+- Our imperial enemies and the Israelis divided us and took advantage of the sacred realms
+- The suffering of the Lebanese people has been prolonged by the Israeli occupation, by Israel's inhumane policies and practices
+- Israel seized the opportunity of the congested Mediterranean atmosphere and the use of US imperialism for its fleets and planes against Libya because of the Arab weakness, so it uses warplanes as an attempt to discipline the only place Lebanon
