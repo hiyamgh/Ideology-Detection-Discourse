@@ -7,7 +7,6 @@ import config
 from script import *
 from nltk.corpus import stopwords
 stopwords_arabic = stopwords.words('arabic')
-# from stopword_removing import StopwordRemover
 
 
 class ArabicNormalizer:
