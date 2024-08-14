@@ -15,51 +15,51 @@ class ArabicNormalizer:
     def __init__(self):
         # self.StopWordRemover = StopwordRemover()
         self.norm_table = {
-                              ALEF_MADDA: ALEF,
-                              ALEF_HAMZA_ABOVE: ALEF,
-                              ALEF_HAMZA_BELOW: ALEF,
+            ALEF_MADDA: ALEF,
+            ALEF_HAMZA_ABOVE: ALEF,
+            ALEF_HAMZA_BELOW: ALEF,
 
-                              TEH_MARBUTA: HEH,
-                              ALEF_MAKSURA: YEH,
+            TEH_MARBUTA: HEH,
+            ALEF_MAKSURA: YEH,
 
-                              TATWEEL: u'',
+            TATWEEL: u'',
 
-                              # Ligatures
-                              LAM_ALEF: LAM + ALEF,
-                              LAM_ALEF_HAMZA_ABOVE: LAM + ALEF,
-                              LAM_ALEF_HAMZA_BELOW: LAM + ALEF,
-                              LAM_ALEF_MADDA_ABOVE: LAM + ALEF,
+            # Ligatures
+            LAM_ALEF: LAM + ALEF,
+            LAM_ALEF_HAMZA_ABOVE: LAM + ALEF,
+            LAM_ALEF_HAMZA_BELOW: LAM + ALEF,
+            LAM_ALEF_MADDA_ABOVE: LAM + ALEF,
 
-                              # Diacritics
-                              FATHATAN: u'', DAMMATAN: u'',
-                              KASRATAN: u'', FATHA: u'',
-                              DAMMA: u'', KASRA: u'',
-                              SHADDA: u'', SUKUN: u'',
+            # Diacritics
+            FATHATAN: u'', DAMMATAN: u'',
+            KASRATAN: u'', FATHA: u'',
+            DAMMA: u'', KASRA: u'',
+            SHADDA: u'', SUKUN: u'',
 
-                              # Numbers English
-                              ZERO: u'',
-                              ONE: u'',
-                              TWO: u'',
-                              THREE: u'',
-                              FOUR: u'',
-                              FIVE: u'',
-                              SIX: u'',
-                              SEVEN: u'',
-                              EIGHT: u'',
-                              NINE: u'',
+            # Numbers English
+            ZERO: u'',
+            ONE: u'',
+            TWO: u'',
+            THREE: u'',
+            FOUR: u'',
+            FIVE: u'',
+            SIX: u'',
+            SEVEN: u'',
+            EIGHT: u'',
+            NINE: u'',
 
-                              # Numbers Arabic
-                              ar_ZERO: u'',
-                              ar_ONE: u'',
-                              ar_TWO: u'',
-                              ar_THREE: u'',
-                              ar_FOUR: u'',
-                              ar_FIVE: u'',
-                              ar_SIX: u'',
-                              ar_SEVEN: u'',
-                              ar_EIGHT: u'',
-                              ar_NINE: u''
-                    }
+            # Numbers Arabic
+            ar_ZERO: u'',
+            ar_ONE: u'',
+            ar_TWO: u'',
+            ar_THREE: u'',
+            ar_FOUR: u'',
+            ar_FIVE: u'',
+            ar_SIX: u'',
+            ar_SEVEN: u'',
+            ar_EIGHT: u'',
+            ar_NINE: u''
+        }
 
         # For normalizing sentences by removing punctuation marks,
         # We will not remove full stop marks because they will help
@@ -117,57 +117,6 @@ class ArabicNormalizer:
     def __del__(self):
         pass
 
-    def normalize_paragraph(self, txt_content):
-        '''
-            the paragraph is read from a file using .readlines(), therefore
-            it is a list of lines. Here, we loop over each line in the
-            paragraph and process it.
-        '''
-        lines_cleaned = []
-        for line in txt_content:
-            if line == '\n':
-                lines_cleaned.append(line)
-            else:
-                lines_cleaned.append(self.normalize_sentence(line))
-        return lines_cleaned
-
-    def normalize_sentence(self, line):
-        '''
-            Normalize teh sentence, if we have senetences generated from .readlines()
-            :param line: the sentence
-            :return: list of tokens normalized
-        '''
-        if config.Add_SPACE_after_TEH_MARBUTA:
-            line = line.replace(TEH_MARBUTA, TEH_MARBUTA+SPACE)
-
-        # for ch in PUNCTUATIONS:
-        for ch in self.punctuation_norm_table:
-            if config.remove_punc:
-                line = line.replace(ch, SPACE)
-                continue
-                
-            if config.isolate_punc:
-                line = line.replace(ch, SPACE+ch+SPACE)    
-            
-            if config.replace_punc:
-                # Note: dictionary.get allows you to provide an additional
-                # default value if the key is not found
-                tempch = self.punctuation_norm_table.get(ch, ch)
-                line = line.replace(ch, tempch)
-            
-        tokens = line.strip().split()
-
-        if config.ignore_oneword_line and len(tokens)==1:
-            return ''
-        
-        terms = list()
-        for token in tokens[:]:
-            term = self.normalize_token(token)
-            if term.strip():
-                terms.append(term)
-
-        return ' '.join(terms)
-
     def normalize_token(self, token):
         ''' a token could be a single word, a multiword expression, or a named entity '''
         # check if token is a valid Arabic Word (from Taha Zerrouki)
@@ -209,46 +158,75 @@ class ArabicNormalizer:
 
         return ''.join(term)
 
+    def normalize_sentence(self, line):
+        '''
+            Normalize the sentence, if we have senetences generated from .readlines()
+            :param line: the sentence
+            :return: list of tokens normalized and concatenated into one string
+        '''
+        if config.Add_SPACE_after_TEH_MARBUTA:
+            line = line.replace(TEH_MARBUTA, TEH_MARBUTA+SPACE)
+
+        # for ch in PUNCTUATIONS:
+        for ch in self.punctuation_norm_table:
+            if config.remove_punc:
+                line = line.replace(ch, SPACE)
+                continue
+                
+            if config.isolate_punc:
+                line = line.replace(ch, SPACE+ch+SPACE)    
+            
+            if config.replace_punc:
+                # Note: dictionary.get allows you to provide an additional
+                # default value if the key is not found
+                tempch = self.punctuation_norm_table.get(ch, ch)
+                line = line.replace(ch, tempch)
+            
+        tokens = line.strip().split()
+
+        if config.ignore_oneword_line and len(tokens)==1:
+            return ''
+        
+        terms = list()
+        for token in tokens[:]:
+            term = self.normalize_token(token)
+            if term.strip():
+                terms.append(term)
+
+        return ' '.join(terms)
+
 
 if __name__ == '__main__':
 
     arabnormalizer = ArabicNormalizer()
 
-    with open('../some_txt_files/33090205.txt', 'r', encoding='utf-8') as f:
+    # read the entire txt file, and normalze
+    with open('82032809.txt', 'r', encoding='utf-8') as f:
         lines = f.readlines()
-        cleaned = arabnormalizer.normalize_paragraph(lines)
-
-    with open('../some_txt_files/33090205_cleaned.txt', 'w', encoding='utf-8') as f:
-        for line in cleaned:
-            if line == '\n':
-                f.write(line)
+        cleaned_lines = []
+        for line in lines:
+            if line.strip() in ['\n', '']:
+                continue
             else:
-                f.write(line + '\n')
+                c_line = arabnormalizer.normalize_sentence(line=line)
+                cleaned_lines.append(c_line)
+    f.close()
 
-    with open('../some_txt_files/33090205_cleaned.txt', 'r', encoding='utf-8') as f:
+    with open('82032809_cleaned.txt', 'w', encoding='utf-8') as f:
         # writing delimiters like this results in a tuple of unicode delimiters
         delimiters = EXCLAMATION, en_FULL_STOP, en_SEMICOLON, en_QUESTION, ar_FULL_STOP, ar_SEMICOLON, ar_QUESTION
+
         # re.escape allows to build the pattern automatically and have the delimiters escaped nicely
         regexPattern = '|'.join(map(re.escape, delimiters))
+
         # read the text and split into sentences whenever a delimiter from delimiters above is encountered
-        text = f.read()
-        sentences = re.split(regexPattern, text)
-        for sent in sentences:
-            print(sent)
-            print('========================================')
-        print(len(sentences))
+        for line in cleaned_lines:
+            sentences = re.split(regexPattern, line)
+            for sent in sentences:
+                if sent.strip() in ['', '\n']:
+                    continue
+                f.write(sent + '\n')
         f.close()
-
-    # # https://stackoverflow.com/a/13184791/11212687
-    # text = 'Hi there. I am ? Hiyam ؟  hELLOOOOOO!!!! bye bye.'
-    # delimiters = EXCLAMATION, en_FULL_STOP, en_SEMICOLON, en_QUESTION, ar_FULL_STOP, ar_SEMICOLON, ar_QUESTION
-    # regexPattern = '|'.join(map(re.escape, delimiters))
-    # print(regexPattern)
-    # sentences = re.split(regexPattern, text)
-    # for sent in sentences:
-    #     print(sent)
-    #     print('========================================')
-
 
 
 

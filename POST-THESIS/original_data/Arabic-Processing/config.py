@@ -22,7 +22,7 @@ remove_diacritics = True
 replace_TEH_MARBUTA = True
 replace_ALEF_MAKSURA = True
 remove_repeating_characters = False # here, the word ta2assasa for example تأسس , it has a repeating character
-                                    # but its part of the original word
+                                    # but its part of the original word, therefore we are setting this to False
 
 remove_nonArabic_word = False
 process_nonArabic_word = True
