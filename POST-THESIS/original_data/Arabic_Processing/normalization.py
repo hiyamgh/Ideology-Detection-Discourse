@@ -221,6 +221,7 @@ if __name__ == '__main__':
         # read the text and split into sentences whenever a delimiter from delimiters above is encountered
         for line in cleaned_lines:
             sentences = re.split(regexPattern, line)
+
             for sent in sentences:
                 if sent.strip() in ['', '\n']:
                     continue
