@@ -1,7 +1,8 @@
 '''
 This code was taken and modified from the following repository: https://github.com/disooqi/ArabicProcessingCog
 '''
-
+import sys
+sys.path.insert(0, "/onyx/data/p118/POST-THESIS/original_data/Arabic_Processing")
 import re
 import config
 from script import *

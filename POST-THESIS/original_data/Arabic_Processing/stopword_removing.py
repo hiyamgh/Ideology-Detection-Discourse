@@ -39,7 +39,18 @@ class StopwordRemover:
         self.stopwords_combined = self.stopwords_nltk + self.stopwords
 
     def is_stopword(self, token):
+        """ given a toke, check if its an Arabic stopword """
         return token in self.stopwords_combined
+
+    def remove_stopwords(self, sentence):
+        """ given a sentence, removes any Arabic stopwards and returns the modified sentence """
+        sentence_new = ''
+        for w in sentence.split(' '):
+            if w in self.stopwords_combined:
+                continue
+            else:
+                sentence_new += w + ' '
+        return sentence_new.strip()
 
 
 if __name__ == '__main__':
