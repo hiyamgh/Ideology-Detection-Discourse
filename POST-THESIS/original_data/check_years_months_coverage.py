@@ -28,6 +28,8 @@ if __name__ == '__main__':
             if y > 2009 and ar == 'nahar':
                 continue
             for m in months:
+                if m < 10:
+                    m = '0' + str(m)
                 if ar == "nahar":
                     years_months_nahar.append(f"{y}-{m}")
                 else:
@@ -55,23 +57,24 @@ if __name__ == '__main__':
                     dayf = file[4:6]
                     page_nbf = file[6:8]
 
-                    if yearf[0] == '0':
-                        year = int('200' + yearf[1])
-                    elif int(yearf) <= 11:
-                        year = int('20' + yearf[1])
+                    if int(yearf) < 20:
+                        year = int('20' + yearf)
                     else:
                         # print(yearf, file)
                         year = int('19' + yearf)
 
-                    if monthf[0] == '0':
-                        month = int(monthf[1])
-                    else:
-                        month = int(monthf)
-
                     if archive == 'nahar':
-                        found_years_months_nahar.add(f"{str(year)}-{str(month)}")
+                        found_years_months_nahar.add(f"{str(year)}-{monthf}")
                     else:
-                        found_years_months_assafir.add(f"{str(year)}-{str(month)}")
+                        found_years_months_assafir.add(f"{str(year)}-{monthf}")
 
     print(f"Year-months not in nahar: {sorted(set(years_months_nahar) - found_years_months_nahar)}")
     print(f"Year-months not in assafir: {sorted(set(years_months_assafir) - found_years_months_assafir)}")
+
+    print('NAHAR FOUND YEARS MONTHS: ')
+    for ym in sorted(found_years_months_nahar):
+        print(ym)
+
+    print('\n\n\n\nn\nASSAFIR FOUND YEARS MONTHS: ')
+    for ym in sorted(found_years_months_assafir):
+        print(ym)
