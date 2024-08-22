@@ -80,7 +80,7 @@ def parse_args():
         help="The configuration name of the dataset to use (via the datasets library).",
     )
     parser.add_argument(
-        "--train_file", type=str, default="C:/Users/96171/Downloads/train.txt", help="A csv or a json file containing the training data."
+        "--train_file", type=str, default="82032809.txt", help="A csv or a json file containing the training data."
     )
     parser.add_argument(
         "--validation_file", type=str, default=None, help="A csv or a json file containing the validation data."
