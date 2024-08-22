@@ -1,5 +1,7 @@
 import img2pdf
 import os
+import argparse
+
 
 def mkdir(folder_name):
 	if not os.path.exists(folder_name):
@@ -7,48 +9,33 @@ def mkdir(folder_name):
 
 
 if __name__ == '__main__':
-	nahar_dir1 = 'F:/newspapers/nahar-images/nahar-batch-1/'
-	nahar_dir2 = 'F:/newspapers/nahar-images//nahar-batch-2/'
-	nahar_dir3 = 'F:/newspapers/nahar-images/nahar-batch-3/'
-	nahar_dir4 = 'F:/newspapers/nahar-images/nahar-batch-4/'
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--archive', type=str, help="name of the archive to process images for")
+	parser.add_argument('--path', type=str, help="path to the batch of images to convert to pdf")
+	args = parser.parse_args()
 
-	# assafir directories
-	assafir_dir1 = 'F:/newspapers/assafir-images/assafir-batch-1/'
-	assafir_dir2 = 'F:/newspapers/assafir-images/assafir-batch-2/'
-
-	# hayat directories
-	hayat_dir1 = 'F:/newspapers/hayat-images/hayat-batch-1/'
-	hayat_dir2 = 'F:/newspapers/hayat-images/hayat-batch-2/'
-
-	nahar_dirs = [nahar_dir1, nahar_dir2, nahar_dir3, nahar_dir4]  # all nahar directories in one list - helps in looping
-	assafir_dirs = [assafir_dir1, assafir_dir2]  # all nahar directories in one list - helps in looping
-	hayat_dirs = [hayat_dir1, hayat_dir2]  # all nahar directories in one list - helps in looping
-
-	archive2dirs = {"nahar": nahar_dirs, "assafir": assafir_dirs, "hayat": hayat_dirs}
+	if not os.path.exists(args.path):
+		raise ValueError(f"{args.path} is not a valid path / does not exist")
 
 	# This is saved on the Local Disk of the Bliss 132 lab ONLY
-	archives2outdirs = {"nahar": "E:/POST-THESIS/nahar-images-pdf/",
-						"assafir": "E:/POST-THESIS/assafir-images-pdf/",
-						"hayat": "E:/POST-THESIS/hayat-images-pdf/"}
+	archives2outdirs = {
+		"nahar": "images/nahar-images-pdf/",
+		"assafir": "images/assafir-images-pdf/",
+		"hayat": "images/hayat-images-pdf/"
+	}
 
 	all_paths = []
-	for archive in archive2dirs:
-		for dir in archive2dirs[archive]:
-			rootdir = dir
-			for subdir, dirs, files in os.walk(rootdir):
-				print(subdir)
-				for file in files:
-					if file.startswith("._"):
-						continue
-					if file.endswith(".hocr"):
-						continue
+	for file in os.listdir(args.path):
+		if file.startswith("._"):
+			continue
+		if file.endswith(".hocr"):
+			continue
+		if not file[0].isdigit():
+			continue
 
-					if not file[0].isdigit():
-						continue
-
-					if ".tif" in file or ".TIF" in file:
-						mkdir(archives2outdirs[archive])
-						all_paths.append(os.path.join(subdir, file))
+		if ".tif" in file or ".TIF" in file:
+			mkdir(archives2outdirs[args.archive])
+			all_paths.append(os.path.join(args.path, file))
 
 	for path in all_paths:
 		filename = path.split("/")[-1]
@@ -72,9 +59,6 @@ if __name__ == '__main__':
 					f.write(img2pdf.convert(path))
 			except:
 				print(f"problem with {path}")
-
-
-
 
 	# # convert all files ending in .jpg inside a directory
 	# 	dirname = "input/"
