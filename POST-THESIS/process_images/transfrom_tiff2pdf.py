@@ -11,31 +11,50 @@ def mkdir(folder_name):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--archive', type=str, help="name of the archive to process images for")
-	parser.add_argument('--path', type=str, help="path to the batch of images to convert to pdf")
+	parser.add_argument('--year', type=str, help="the year for which to consider converting images to pdfs")
 	args = parser.parse_args()
 
-	if not os.path.exists(args.path):
-		raise ValueError(f"{args.path} is not a valid path / does not exist")
+	nahar_dir1 = 'nahar-images/nahar-images/nahar-batch-1/'
+	nahar_dir2 = 'nahar-images/nahar-images/nahar-batch-2/'
+	nahar_dir3 = 'nahar-images/nahar-images/nahar-batch-3/'
+	nahar_dir4 = 'nahar-images/nahar-images/nahar-batch-4/'
+	nahar_dirs = [nahar_dir1, nahar_dir2, nahar_dir3, nahar_dir4]
+
+	# assafir directories
+	assafir_dir1 = 'assafir-images/assafir-images/assafir-batch-1/'
+	assafir_dir2 = 'assafir-iamges/assafir-images/assafir-batch-2/'
+	assafir_dirs = [assafir_dir1, assafir_dir2]
+
+	# hayat directories
+	hayat_dir1 = 'hayat-images/hayat-images/hayat-batch-1/'
+	hayat_dir2 = 'hayat-images/hayat-images/hayat-batch-2/'
+	hayat_dirs = [hayat_dir1, hayat_dir2]
+
+	archive2dirs = {"nahar": nahar_dirs, "assafir": assafir_dirs, "hayat": hayat_dirs}
 
 	# This is saved on the Local Disk of the Bliss 132 lab ONLY
 	archives2outdirs = {
-		"nahar": "images/nahar-images-pdf/",
-		"assafir": "images/assafir-images-pdf/",
-		"hayat": "images/hayat-images-pdf/"
+		"nahar": "nahar-images-pdf/{}/".format(args.year),
+		"assafir": "assafir-images-pdf/{}/".format(args.year),
+		"hayat": "hayat-images-pdf/{}/".format(args.year)
 	}
 
 	all_paths = []
-	for file in os.listdir(args.path):
-		if file.startswith("._"):
-			continue
-		if file.endswith(".hocr"):
-			continue
-		if not file[0].isdigit():
-			continue
-
-		if ".tif" in file or ".TIF" in file:
-			mkdir(archives2outdirs[args.archive])
-			all_paths.append(os.path.join(args.path, file))
+	for dir in archive2dirs[args.archive]:
+		rootdir = dir
+		for subdir, dirs, files in os.walk(rootdir):
+			print(subdir)
+			for file in files:
+				if file.startswith("._"):
+					continue
+				if file.endswith(".hocr"):
+					continue
+				if not file[0].isdigit():
+					continue
+				if file[:2] == args.year[2:4]:
+					if ".tif" in file or ".TIF" in file:
+						mkdir(archives2outdirs[args.archive])
+						all_paths.append(os.path.join(subdir, file))
 
 	for path in all_paths:
 		filename = path.split("/")[-1]
