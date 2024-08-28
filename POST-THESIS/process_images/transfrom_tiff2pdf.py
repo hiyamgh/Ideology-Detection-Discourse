@@ -52,7 +52,7 @@ if __name__ == '__main__':
 				if not file[0].isdigit():
 					continue
 				if file[:2] == args.year[2:4]:
-					if ".tif" in file or ".TIF" in file:
+					if ".tif" in file or ".TIF" in file or ".jpg" in file:
 						mkdir(archives2outdirs[args.archive])
 						all_paths.append(os.path.join(subdir, file))
 
