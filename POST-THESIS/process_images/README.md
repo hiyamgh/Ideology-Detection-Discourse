@@ -60,8 +60,8 @@ totaling 278,651 whilst the number reported in Jad's paper is 278,779 --> 128 im
    * ``transform_assafir.sub``
    * ``transform_nahar.sub``
    * ``transform_hayat.sub``
-6. Zip the transformed files
-   * 
+6. The name of the folders (one folder per year in the ``nahar-images-pdf``, ``assafir-images-pdf``, and ``hayat-images-pdf`` had ``'\r'`` char, so please run the following script after you `cd` into each directory)
+   * ``rename_folders.py``
    
 
 ## Diagnostics
