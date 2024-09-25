@@ -22,7 +22,7 @@ Assumes that `nahar.tar.gz` and `assafir.tar.gz` exist
 شيطانا كما نتصوره في اسرائيل لكنه لم يتعامل معنا كما لو
 كان ملاكا».
 ````
-* run `transform_data.py` to this, and each transformed `.txt` file is saved in the output directory: `archive_name_transformed/`
+* run `transform_data.py` (found in `data_transformation/` directory) to do this, and each transformed `.txt` file is saved in the output directory: `archive_name_transformed/`
 
 ### Split the data - monthly level
 * Each file in the archive is named as follows: YYMMDDPP.txt:
