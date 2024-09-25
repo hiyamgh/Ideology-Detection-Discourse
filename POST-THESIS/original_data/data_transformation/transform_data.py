@@ -59,6 +59,8 @@ if __name__ == '__main__':
                     for sublist in transformed:
                         if sublist == []:
                             continue
+                        if " ".join(sublist).strip().replace("\n", "") == "":
+                            continue
                         fout.write(" ".join(sublist) + "\n")
                 fout.close()
 
