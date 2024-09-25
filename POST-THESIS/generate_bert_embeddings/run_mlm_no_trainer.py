@@ -80,7 +80,7 @@ def parse_args():
         help="The configuration name of the dataset to use (via the datasets library).",
     )
     parser.add_argument(
-        "--train_file", type=str, default="82032809.txt", help="A csv or a json file containing the training data."
+        "--train_file", type=str, default="1982.txt", help="A csv or a json file containing the training data."
     )
     parser.add_argument(
         "--validation_file", type=str, default=None, help="A csv or a json file containing the validation data."
@@ -168,7 +168,7 @@ def parse_args():
     parser.add_argument(
         "--num_warmup_steps", type=int, default=0, help="Number of steps for the warmup in the lr scheduler."
     )
-    parser.add_argument("--output_dir", type=str, default="train-dump/", help="Where to store the final model.")
+    parser.add_argument("--output_dir", type=str, default="trained_models/", help="Where to store the final model.")
     parser.add_argument("--seed", type=int, default=None, help="A seed for reproducible training.")
     parser.add_argument(
         "--model_type",
