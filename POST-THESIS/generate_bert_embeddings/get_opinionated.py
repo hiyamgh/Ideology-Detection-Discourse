@@ -44,17 +44,11 @@ def mkdir(folder_name):
 
 if __name__ == '__main__':
 
-    nahar_dir1 = '/onyx/data/p118/POST-THESIS/original_data/nahar/nahar/nahar-batch-1/'
-    nahar_dir2 = '/onyx/data/p118/POST-THESIS/original_data/nahar/nahar/nahar-batch-2/'
-    nahar_dir3 = '/onyx/data/p118/POST-THESIS/original_data/nahar/nahar/nahar-batch-3/'
-    nahar_dir4 = '/onyx/data/p118/POST-THESIS/original_data/nahar/nahar/nahar-batch-4/'
+    nahar_dir1 = '/onyx/data/p118/POST-THESIS/original_data/nahar_transformed/'
+    assafir_dir1 = '/onyx/data/p118/POST-THESIS/original_data/assafir_transformed/'
 
-    # assafir directories
-    assafir_dir1 = '/onyx/data/p118/POST-THESIS/original_data/assafir/assafir/assafir-batch-1/'
-    assafir_dir2 = '/onyx/data/p118/POST-THESIS/original_data/assafir/assafir/assafir-batch-2/'
-
-    nahar_dirs = [nahar_dir1, nahar_dir2, nahar_dir3,  nahar_dir4]  # all nahar directories in one list - helps in looping
-    assafir_dirs = [assafir_dir1, assafir_dir2]  # all nahar directories in one list - helps in looping
+    nahar_dirs = [nahar_dir1]  # all nahar directories in one list - helps in looping
+    assafir_dirs = [assafir_dir1]  # all nahar directories in one list - helps in looping
 
     archive2dirs = {"nahar": nahar_dirs, "assafir": assafir_dirs}
 
@@ -126,3 +120,17 @@ if __name__ == '__main__':
                         shutil.copyfile(os.path.join(subdir, file), os.path.join(save_dir, file))
 
     print('finished copying files')
+
+    # generate one file that is a collation of all files collated together
+    save_dir_input = save_dir
+    save_dir = 'opinionated_articles_DrNabil/1982/training_file/'
+    mkdir(save_dir)
+
+    with open(os.path.join(save_dir, '1982.txt'), 'w') as f:
+        for file in os.listdir(save_dir_input):
+            with open(os.path.join(save_dir_input, file), 'r') as fin:
+                lines = fin.readlines()
+                for line in lines:
+                    f.write(line)
+            fin.close()
+    print('Done creating final training file!')
