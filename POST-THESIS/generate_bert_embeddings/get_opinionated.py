@@ -3,7 +3,7 @@
     * We assume this is only pages 1 and 2 from a certain issue
     * The way Arabic Newspapers operated back then, was that there were certain articles that
     start on one page and continue on another page (not necessarily the page right after). We call it
-    تتمة
+    تتمة (tatimma)
     therefore, this code gets opinionated text from pages 1 and 2, and other completions
 '''
 
@@ -50,67 +50,68 @@ if __name__ == '__main__':
     nahar_dirs = [nahar_dir1]  # all nahar directories in one list - helps in looping
     assafir_dirs = [assafir_dir1]  # all nahar directories in one list - helps in looping
 
-    archive2dirs = {"nahar": nahar_dirs, "assafir": assafir_dirs}
+    archive2dirs = {"An-Nahar": nahar_dirs, "As-Safir": assafir_dirs}
 
-    df = pd.read_excel('opinionated_articles_DrNabil/1982/tatimmas/tatimma.xlsx')
-    cols = df.columns
-    print(cols)
+    for archive in archive2dirs:
 
-    filenames = []
+        df = pd.read_excel('opinionated_articles_DrNabil/1982/tatimmas/tatimma.xlsx', sheet_name=f'{archive}')
+        cols = df.columns
+        print(cols)
 
-    for month in months2num:
-        if month in cols:
-            print(f'PROCESSING MONTH: {month} ===================================================')
-            tatimmacol = monthcols2tatimacols[month]
+        filenames = []
 
-            days = list(df[month])
-            tatimmas = list(df[tatimmacol])
+        for month in months2num:
+            if month in cols:
+                print(f'PROCESSING MONTH: {month} ===================================================')
+                tatimmacol = monthcols2tatimacols[month]
 
-            for day, page in zip(days, tatimmas):
-                if str(day) in ["nan", " ", ""]:
-                    continue
+                days = list(df[month])
+                tatimmas = list(df[tatimmacol])
 
-                day = str(int(day))
+                for day, page in zip(days, tatimmas):
+                    if str(day) in ["nan", " ", ""]:
+                        continue
 
-                print(f'\n{day}, {page}')
-                day_f = '0' + day if int(day) < 10 else day
+                    day = str(int(day))
 
-                filename1 = '82{}{}01.txt'.format(months2num[month], day_f)
-                filename2 = '82{}{}02.txt'.format(months2num[month], day_f)
+                    print(f'\n{day}, {page}')
+                    day_f = '0' + day if int(day) < 10 else day
 
-                filenames.append(filename1)
-                filenames.append(filename2)
+                    filename1 = '82{}{}01.txt'.format(months2num[month], day_f)
+                    filename2 = '82{}{}02.txt'.format(months2num[month], day_f)
 
-                print(f'added {filename1}')
-                print(f'added {filename2}')
+                    filenames.append(filename1)
+                    filenames.append(filename2)
 
-                page = str(page)
-                if page in ["nan", " ", ""]:
-                    continue
+                    print(f'added {filename1}')
+                    print(f'added {filename2}')
 
-                if '.0' in page:
-                    page = page.replace('.0', '')
+                    page = str(page)
+                    if page in ["nan", " ", ""]:
+                        continue
 
-                if ',' in page:
-                    pages = [p.strip() for p in page.split(',')]
-                    pages = [p for p in pages if p != ""]
-                    pages = ['0' + p if int(p) < 10 else p for p in pages]
+                    if '.0' in page:
+                        page = page.replace('.0', '')
 
-                    for pagenum in pages:
+                    if ',' in page:
+                        pages = [p.strip() for p in page.split(',')]
+                        pages = [p for p in pages if p != ""]
+                        pages = ['0' + p if int(p) < 10 else p for p in pages]
+
+                        for pagenum in pages:
+                            filename3 = '82{}{}{}.txt'.format(months2num[month], day_f, pagenum)
+                            filenames.append(filename3)
+                            print(f'added {filename3}')
+                    else:
+
+                        pagenum = '0' + page if int(page) < 10 else page
                         filename3 = '82{}{}{}.txt'.format(months2num[month], day_f, pagenum)
                         filenames.append(filename3)
                         print(f'added {filename3}')
-                else:
 
-                    pagenum = '0' + page if int(page) < 10 else page
-                    filename3 = '82{}{}{}.txt'.format(months2num[month], day_f, pagenum)
-                    filenames.append(filename3)
-                    print(f'added {filename3}')
+        save_dir = f'opinionated_articles_DrNabil/1982/txt_files/{archive}'
+        mkdir(save_dir)
 
-    save_dir = 'opinionated_articles_DrNabil/1982/txt_files/'
-    mkdir(save_dir)
-
-    for archive in archive2dirs:
         for dir in archive2dirs[archive]:
             rootdir = dir
             for subdir, dirs, files in os.walk(rootdir):
@@ -119,18 +120,18 @@ if __name__ == '__main__':
                     if file in filenames:
                         shutil.copyfile(os.path.join(subdir, file), os.path.join(save_dir, file))
 
-    print('finished copying files')
+        print('finished copying files')
 
-    # generate one file that is a collation of all files collated together
-    save_dir_input = save_dir
-    save_dir = 'opinionated_articles_DrNabil/1982/training_file/'
-    mkdir(save_dir)
+        # generate one file that is a collation of all files collated together
+        save_dir_input = save_dir
+        save_dir = f'opinionated_articles_DrNabil/1982/training_file/{archive}'
+        mkdir(save_dir)
 
-    with open(os.path.join(save_dir, '1982.txt'), 'w') as f:
-        for file in os.listdir(save_dir_input):
-            with open(os.path.join(save_dir_input, file), 'r') as fin:
-                lines = fin.readlines()
-                for line in lines:
-                    f.write(line)
-            fin.close()
-    print('Done creating final training file!')
+        with open(os.path.join(save_dir, f'1982_{archive}.txt'), 'w') as f:
+            for file in os.listdir(save_dir_input):
+                with open(os.path.join(save_dir_input, file), 'r') as fin:
+                    lines = fin.readlines()
+                    for line in lines:
+                        f.write(line)
+                fin.close()
+        print('Done creating final training file!')

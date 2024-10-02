@@ -4,7 +4,6 @@
 #SBATCH --partition=cpu # Partition
 #SBATCH --nodes=1 # Number of nodes
 #SBATCH --ntasks-per-node=1  # Number of tasks
-#SBATCH --nodelist=cn06
 #SBATCH --output=%j.out # Stdout (%j=jobId)
 #SBATCH --error=%j.err # Stderr (%j=jobId)
 #SBATCH --mem=1000
