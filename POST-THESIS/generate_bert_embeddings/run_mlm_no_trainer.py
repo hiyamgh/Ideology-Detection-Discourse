@@ -145,7 +145,7 @@ def parse_args():
         help="Initial learning rate (after the potential warmup period) to use.",
     )
     parser.add_argument("--weight_decay", type=float, default=0.0, help="Weight decay to use.")
-    parser.add_argument("--num_train_epochs", type=int, default=3, help="Total number of training epochs to perform.")
+    parser.add_argument("--num_train_epochs", type=int, default=5, help="Total number of training epochs to perform.")
     parser.add_argument(
         "--max_train_steps",
         type=int,
@@ -180,7 +180,7 @@ def parse_args():
     parser.add_argument(
         "--max_seq_length",
         type=int,
-        default=None,
+        default=512,
         help=(
             "The maximum total input sequence length after tokenization. Sequences longer than this will be truncated."
         ),
@@ -434,6 +434,10 @@ def main():
     else:
         logger.info("Training new model from scratch")
         model = AutoModelForMaskedLM.from_config(config, trust_remote_code=args.trust_remote_code)
+
+    args.output_dir = "trained_models/{}/".format(args.model_name_or_path.replace("/", "-"))
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
 
     # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
     # on a small vocab and want a smaller embedding size, remove this test.

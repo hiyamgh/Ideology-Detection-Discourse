@@ -1,0 +1,9 @@
+--model_name_or_path aubmindlab/bert-base-arabertv2 --train_file opinionated_articles_DrNabil/1982/training_file/1982.txt --checkpointing_steps 5000
+--model_name_or_path aubmindlab/bert-base-arabert --train_file opinionated_articles_DrNabil/1982/training_file/1982.txt --checkpointing_steps 5000
+--model_name_or_path aubmindlab/bert-base-arabertv01 --train_file opinionated_articles_DrNabil/1982/training_file/1982.txt --checkpointing_steps 5000
+--model_name_or_path aubmindlab/bert-base-arabertv02 --train_file opinionated_articles_DrNabil/1982/training_file/1982.txt --checkpointing_steps 5000
+--model_name_or_path aubmindlab/bert-base-arabertv02-twitter --train_file opinionated_articles_DrNabil/1982/training_file/1982.txt --checkpointing_steps 5000
+--model_name_or_path UBC-NLP/ARBERT --train_file opinionated_articles_DrNabil/1982/training_file/1982.txt --checkpointing_steps 5000
+--model_name_or_path UBC-NLP/MARBERT --train_file opinionated_articles_DrNabil/1982/training_file/1982.txt --checkpointing_steps 5000
+--model_name_or_path UBC-NLP/MARBERTv2 --train_file opinionated_articles_DrNabil/1982/training_file/1982.txt --checkpointing_steps 5000
+--model_name_or_path qarib/bert-base-qarib --train_file opinionated_articles_DrNabil/1982/training_file/1982.txt --checkpointing_steps 5000
