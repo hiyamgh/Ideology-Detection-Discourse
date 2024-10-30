@@ -9,6 +9,8 @@ Sentence: <chosen sentence>
 
 The text uses Modern Standard Arabic (MSA)
 
+Don't translate the chosen sentence to English, display it as is.
+
 Text: {}
 Answer:
 

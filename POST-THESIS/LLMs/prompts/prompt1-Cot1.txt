@@ -17,5 +17,7 @@ If no sentences fall into these categories, output: "None".
 
 The text uses Modern Standard Arabic (MSA), and contains spelling errors due to OCR.
 
+Don't translate the chosen sentence to English, display it as is.
+
 Text: {}
 Answer:

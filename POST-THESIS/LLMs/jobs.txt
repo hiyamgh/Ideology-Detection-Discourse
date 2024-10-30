@@ -1,6 +1,6 @@
---prompt_file prompt0.txt
---prompt_file prompt0-CoT0.txt
---prompt_file prompt0-CoT1.txt
---prompt_file prompt1.txt
---prompt_file prompt1-CoT0.txt
---prompt_file prompt1-CoT1.txt
+--prompt_file prompts/prompt0.txt
+--prompt_file prompts/prompt0-CoT0.txt
+--prompt_file prompts/prompt0-CoT1.txt
+--prompt_file prompts/prompt1.txt
+--prompt_file prompts/prompt1-CoT0.txt
+--prompt_file prompts/prompt1-CoT1.txt
