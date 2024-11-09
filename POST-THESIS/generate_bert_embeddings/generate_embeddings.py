@@ -14,14 +14,6 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-def get_shifts(input_path):
-    shifts_dict = {}
-    df_shifts = pd.read_csv(input_path, sep=',', encoding='utf8')
-    for idx, row in df_shifts.iterrows():
-        shifts_dict[row['word']] = row['shift_index']
-    return shifts_dict
-
-
 def tokens_to_batches(ds, tokenizer, batch_size, max_length):
     batches = []
     batch = []
@@ -241,17 +233,14 @@ if __name__ == '__main__':
 
     datasets = get_datasets_by_month(args.archive)
 
-    # tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
-    # state_dict = torch.load(args.path_to_model)
-    # model = BertModel.from_pretrained('bert-base-uncased', state_dict=state_dict, output_hidden_states=True)
-
     tokenizer = AutoTokenizer.from_pretrained(args.path_to_model)
     model = AutoModelForMaskedLM.from_pretrained(args.path_to_model, output_hidden_states=True)
 
     model.cuda()
     model.eval()
 
-    save_dir = 'opinionated_articles_DrNabil/1982/embeddings/{}'.format(args.archive)
+    model_name = args.path_to_model.replace('/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/', "").replace("/", "")
+    save_dir = 'opinionated_articles_DrNabil/1982/embeddings/{}/{}/'.format(args.archive, model_name)
     mkdir(save_dir)
     embeddings_path = os.path.join(save_dir, "embeddings.pickle")
 
