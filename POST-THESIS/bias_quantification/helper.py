@@ -1,5 +1,3 @@
-import gensim
-from gensim.models import KeyedVectors
 import numpy as np
 
 

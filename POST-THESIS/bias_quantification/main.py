@@ -121,6 +121,10 @@ def get_word_embedding(word, tokenizer):
 
 
 def embedding_bias(embeddings_nahar, embeddings_assafir, target_list, neutral_list):
+    # Load dictionary from a pickle file
+    with open("../generate_bert_embeddings/similarities.pkl", "rb") as file:
+        loaded_dict = pickle.load(file)
+
     means = []
     years = ['06', '07', '08', '09', '10', '11', '12']
     for year in years:
@@ -130,12 +134,41 @@ def embedding_bias(embeddings_nahar, embeddings_assafir, target_list, neutral_li
             if '{}_{}'.format(year, word) in embeddings_nahar:
                 v1.append(embeddings_nahar['{}_{}'.format(year, word)])
             else:
-                print(f'DID NOT FIND {year}_{word} in embeddings nahar')
+                if len(word.split(" ")) > 1:
+                    vectors = []
+                    for wt in word.split(" "):
+                        possible = loaded_dict[wt]
+                        for p in possible:
+                            vectors.append(embeddings_nahar['{}_{}'.format(year, p)])
+                else:
+                    vectors = []
+                    possible = loaded_dict[word]
+                    for p in possible:
+                        vectors.append(embeddings_nahar['{}_{}'.format(year, p)])
+
+                    final_vector = np.mean(vectors, axis=0)
+                    v1.append(final_vector)
+
+                # print(f'DID NOT FIND {year}_{word} in embeddings nahar')
         for word in target_list:
             if '{}_{}'.format(year, word) in embeddings_assafir:
                 v2.append(embeddings_assafir['{}_{}'.format(year, word)])
             else:
-                print(f'DID NOT FIND {year}_{word} in embeddings assafir')
+                if len(word.split(" ")) > 1:
+                    vectors = []
+                    for wt in word.split(" "):
+                        possible = loaded_dict[wt]
+                        for p in possible:
+                            vectors.append(embeddings_assafir['{}_{}'.format(year, p)])
+                else:
+                    vectors = []
+                    possible = loaded_dict[word]
+                    for p in possible:
+                        vectors.append(embeddings_assafir['{}_{}'.format(year, p)])
+
+                    final_vector = np.mean(vectors, axis=0)
+                    v2.append(final_vector)
+                # print(f'DID NOT FIND {year}_{word} in embeddings assafir')
 
         v1 = np.mean(v1)
         v2 = np.mean(v2)
@@ -199,15 +232,15 @@ if __name__ == '__main__':
     }
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', type=str, help='name of the model for which embeddings are stored')
+    parser.add_argument('--model_name', type=str, default='UBC-NLP-MARBERTv2', help='name of the model for which embeddings are stored')
     args = parser.parse_args()
 
     # Load the model and tokenizer
     model_name = args.model_name
     path_to_model = "/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/{}/".format(model_name)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.path_to_model)
-    model = AutoModelForMaskedLM.from_pretrained(args.path_to_model, output_hidden_states=True).cuda()
+    tokenizer = AutoTokenizer.from_pretrained(path_to_model)
+    model = AutoModelForMaskedLM.from_pretrained(path_to_model, output_hidden_states=True).cuda()
     model.eval()
 
     path_nahar = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/An-Nahar/{}/'.format(args.model_name)
