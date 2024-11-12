@@ -125,53 +125,149 @@ def embedding_bias(embeddings_nahar, embeddings_assafir, target_list, neutral_li
     with open("../generate_bert_embeddings/similarities.pkl", "rb") as file:
         loaded_dict = pickle.load(file)
 
+    print(target_list)
+
     means = []
     years = ['06', '07', '08', '09', '10', '11', '12']
     for year in years:
 
         v1, v2 = [], []
+        count = 0
+
         for word in target_list:
-            if '{}_{}'.format(year, word) in embeddings_nahar:
-                v1.append(embeddings_nahar['{}_{}'.format(year, word)])
+            vectors = []
+            if '{}_{}'.format(word, year) in embeddings_nahar:
+                v1.append(embeddings_nahar['{}_{}'.format(word, year)])
+                # print(v1)
+                print('yes')
+                # print(v1.shape)
             else:
                 if len(word.split(" ")) > 1:
-                    vectors = []
+                    # vectors = []
                     for wt in word.split(" "):
                         possible = loaded_dict[wt]
+                        print(possible)
                         for p in possible:
-                            vectors.append(embeddings_nahar['{}_{}'.format(year, p)])
-                else:
-                    vectors = []
-                    possible = loaded_dict[word]
-                    for p in possible:
-                        vectors.append(embeddings_nahar['{}_{}'.format(year, p)])
+                            if '{}_{}'.format(p, year) in embeddings_nahar:
+                                vectors.append(embeddings_nahar['{}_{}'.format(p, year)])
+                                print('yes')
+                                # print(embeddings_nahar['{}_{}'.format(year, p)][:10])
+                            else:
+                                tokenized_word = tokenizer.tokenize(p)
 
-                    final_vector = np.mean(vectors, axis=0)
-                    v1.append(final_vector)
+                                if not tokenized_word:
+                                    print(f"The word '{p}' could not be tokenized.")
+                                    continue
+
+                                # Check if any of the tokens are in the vocab_vectors
+                                for token in tokenized_word:
+                                    # Check if the token exists in the vocab_vectors
+                                    token_key = token.replace('##', '')  # Remove '##' if it exists for subwords
+                                    if f"{token_key}_{year}" in embeddings_nahar:  # Add the year if your embeddings are year-specific
+                                        vectors.append(embeddings_nahar[f"{token_key}_{year}"])
+                                print('yesssssssssssssssssssssssssssssssssss')
+                                count += 1
+                            # try:
+                            #     vectors.append(embeddings_nahar['{}_{}'.format(year, p)])
+                            # except:
+                            #     count += 1
+                else:
+                    possible = loaded_dict[word]
+                    print(possible)
+                    for p in possible:
+                        if '{}_{}'.format(p, year) in embeddings_nahar:
+                            print('yes')
+                            vectors.append(embeddings_nahar['{}_{}'.format(p, year)])
+                            # print(embeddings_nahar['{}_{}'.format(year, p)][:10])
+                        else:
+                            tokenized_word = tokenizer.tokenize(p)
+
+                            if not tokenized_word:
+                                print(f"The word '{p}' could not be tokenized.")
+                                continue
+
+                            # Check if any of the tokens are in the vocab_vectors
+                            for token in tokenized_word:
+                                # Check if the token exists in the vocab_vectors
+                                token_key = token.replace('##', '')  # Remove '##' if it exists for subwords
+                                if f"{token_key}_{year}" in embeddings_nahar:  # Add the year if your embeddings are year-specific
+                                    vectors.append(embeddings_nahar[f"{token_key}_{year}"])
+                            print('yesssssssssssssssssssssssssssssssssss')
+                            count += 1
+            if vectors != []:
+                final_vector = np.mean(vectors, axis=0)
+                v1.append(final_vector)
+
 
                 # print(f'DID NOT FIND {year}_{word} in embeddings nahar')
         for word in target_list:
-            if '{}_{}'.format(year, word) in embeddings_assafir:
-                v2.append(embeddings_assafir['{}_{}'.format(year, word)])
+            vectors = []
+            if '{}_{}'.format(word, year) in embeddings_assafir:
+                print('yes')
+                v2.append(embeddings_assafir['{}_{}'.format(word, year)])
+                # print(v2.shape)
+                # print(v2)
             else:
                 if len(word.split(" ")) > 1:
-                    vectors = []
+
                     for wt in word.split(" "):
                         possible = loaded_dict[wt]
+                        print(possible)
                         for p in possible:
-                            vectors.append(embeddings_assafir['{}_{}'.format(year, p)])
+                            if '{}_{}'.format(p, year) in embeddings_assafir:
+                                print('yes')
+                                vectors.append(embeddings_assafir['{}_{}'.format(p, year)])
+                                # print(embeddings_assafir['{}_{}'.format(year, p)][:10])
+                            else:
+                                tokenized_word = tokenizer.tokenize(p)
+
+                                if not tokenized_word:
+                                    print(f"The word '{p}' could not be tokenized.")
+                                    continue
+
+                                # Check if any of the tokens are in the vocab_vectors
+                                for token in tokenized_word:
+                                    # Check if the token exists in the vocab_vectors
+                                    token_key = token.replace('##', '')  # Remove '##' if it exists for subwords
+                                    if f"{token_key}_{year}" in embeddings_assafir:  # Add the year if your embeddings are year-specific
+                                        vectors.append(embeddings_assafir[f"{token_key}_{year}"])
+                                count += 1
                 else:
                     vectors = []
                     possible = loaded_dict[word]
+                    print(possible)
                     for p in possible:
-                        vectors.append(embeddings_assafir['{}_{}'.format(year, p)])
+                        if '{}_{}'.format(p, year) in embeddings_assafir:
+                            vectors.append(embeddings_assafir['{}_{}'.format(p, year)])
+                            print('yes')
+                            # print(embeddings_assafir['{}_{}'.format(year, p)][:10])
+                        else:
+                            tokenized_word = tokenizer.tokenize(p)
 
-                    final_vector = np.mean(vectors, axis=0)
-                    v2.append(final_vector)
+                            if not tokenized_word:
+                                print(f"The word '{p}' could not be tokenized.")
+                                continue
+
+                            # Check if any of the tokens are in the vocab_vectors
+                            for token in tokenized_word:
+                                # Check if the token exists in the vocab_vectors
+                                token_key = token.replace('##', '')  # Remove '##' if it exists for subwords
+                                if f"{token_key}_{year}" in embeddings_assafir:  # Add the year if your embeddings are year-specific
+                                    vectors.append(embeddings_assafir[f"{token_key}_{year}"])
+                            count += 1
+
+            if vectors != []:
+                final_vector = np.mean(vectors, axis=0)
+                print(final_vector[:10])
+                v2.append(final_vector)
                 # print(f'DID NOT FIND {year}_{word} in embeddings assafir')
 
-        v1 = np.mean(v1)
-        v2 = np.mean(v2)
+        # print(F'DID NOT FIND {count} words')
+        v1 = np.mean(v1, axis=0)
+        v2 = np.mean(v2, axis=0)
+
+        # print(v1.shape, v1)
+        # print(v2.shape, v2)
 
         # v1 = np.mean([embeddings_nahar['{}_{}'.format(year, word)] for word in target_list if '{}_{}'.format(year, word) in embeddings_nahar], axis=0)
         # v2 = np.mean([embeddings_assafir['{}_{}'.format(year, word)] for word in target_list if '{}_{}'.format(year, word) in embeddings_assafir], axis=0)
@@ -185,6 +281,7 @@ def embedding_bias(embeddings_nahar, embeddings_assafir, target_list, neutral_li
             except:
                 pass
         C = [x_ - y_ for x_, y_ in zip(x, y)]
+        print(C)
         # values.append(C)
         means.append(np.mean(C))
         # bounds.append(pb.bootstrap(C, confidence=0.95, iterations=1000, sample_size=.9, statistic=np.mean))
@@ -248,9 +345,11 @@ if __name__ == '__main__':
 
     with open(os.path.join(path_nahar, 'words_per_year.pickle'), 'rb') as handle:
         embeddings_nahar = pickle.load(handle)
+        print(len(embeddings_nahar))
 
     with open(os.path.join(path_assafir, 'words_per_year.pickle'), 'rb') as handle:
         embeddings_assafir = pickle.load(handle)
+        print(len(embeddings_assafir))
 
     # read each word
     for event_name in entities_target_neutral_lists:
