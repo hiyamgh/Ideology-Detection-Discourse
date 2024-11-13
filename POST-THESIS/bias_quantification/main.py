@@ -266,8 +266,8 @@ def embedding_bias(embeddings_nahar, embeddings_assafir, target_list, neutral_li
         v1 = np.mean(v1, axis=0)
         v2 = np.mean(v2, axis=0)
 
-        # print(v1.shape, v1)
-        # print(v2.shape, v2)
+        print(v1.shape, v1)
+        print(v2.shape, v2)
 
         # v1 = np.mean([embeddings_nahar['{}_{}'.format(year, word)] for word in target_list if '{}_{}'.format(year, word) in embeddings_nahar], axis=0)
         # v2 = np.mean([embeddings_assafir['{}_{}'.format(year, word)] for word in target_list if '{}_{}'.format(year, word) in embeddings_assafir], axis=0)
@@ -353,6 +353,7 @@ if __name__ == '__main__':
 
     # read each word
     for event_name in entities_target_neutral_lists:
+        print(f"Processing {event_name}")
         file_entities = entities_target_neutral_lists[event_name]['entities']
         file_negconn = entities_target_neutral_lists[event_name]['neutral_list'][0]
         file_posconn = entities_target_neutral_lists[event_name]['neutral_list'][1]
