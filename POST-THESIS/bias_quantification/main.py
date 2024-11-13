@@ -63,7 +63,9 @@ def plot_differences(list1, list2, model, features, xlabel, ylabel, save_dir, fi
 #     plt.close()
 
 def plot_embedding_bias_over_time(biases, ylabel, save_dir, fig_name):
-    plt.plot(list(range(len(biases))), biases, marker='o', label="Avg. Embedding bias")
+    for model_name in biases:
+        plt.plot(list(range(len(biases[model_name]))), biases[model_name], marker='o', label=f"EB for {model_name}")
+
     plt.hlines(y=0, xmin=0, xmax=len(biases), colors='black', linestyles='--', lw=2, label='EB=0')
 
     plt.legend()
@@ -72,7 +74,7 @@ def plot_embedding_bias_over_time(biases, ylabel, save_dir, fig_name):
     fig.set_size_inches(12, 6)
     plt.grid(axis='y')
 
-    plt.xticks(list(range(len(biases))), ['1982-{}'.format(m) for m in ['06', '07', '08', '09', '10', '11', '12']], rotation='vertical')
+    plt.xticks(list(range(len(biases[model_name]))), ['1982-{}'.format(m) for m in ['06', '07', '08', '09', '10', '11', '12']], rotation=45)
     plt.ylabel(ylabel)
 
     mkdir(save_dir)
@@ -332,50 +334,67 @@ if __name__ == '__main__':
     parser.add_argument('--model_name', type=str, default='UBC-NLP-MARBERTv2', help='name of the model for which embeddings are stored')
     args = parser.parse_args()
 
-    # Load the model and tokenizer
-    model_name = args.model_name
-    path_to_model = "/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/{}/".format(model_name)
+    models = [
+        "UBC-NLP-MARBERTv2",
+        "qarib-bert-base-qarib",
+        "UBC-NLP-MARBERT",
+        "UBC-NLP-ARBERT",
+        "aubmindlab-bert-base-arabert",
+        "aubmindlab-bert-base-arabertv02-twitter",
+        "aubmindlab-bert-base-arabertv2",
+        "aubmindlab-bert-base-arabertv01",
+        "aubmindlab-bert-base-arabertv02",
+    ]
 
-    tokenizer = AutoTokenizer.from_pretrained(path_to_model)
-    model = AutoModelForMaskedLM.from_pretrained(path_to_model, output_hidden_states=True).cuda()
-    model.eval()
-
-    path_nahar = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/An-Nahar/{}/'.format(args.model_name)
-    path_assafir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/As-Safir/{}/'.format(args.model_name)
-
-    with open(os.path.join(path_nahar, 'words_per_year.pickle'), 'rb') as handle:
-        embeddings_nahar = pickle.load(handle)
-        print(len(embeddings_nahar))
-
-    with open(os.path.join(path_assafir, 'words_per_year.pickle'), 'rb') as handle:
-        embeddings_assafir = pickle.load(handle)
-        print(len(embeddings_assafir))
-
-    # read each word
     for event_name in entities_target_neutral_lists:
-        print(f"Processing {event_name}")
-        file_entities = entities_target_neutral_lists[event_name]['entities']
-        file_negconn = entities_target_neutral_lists[event_name]['neutral_list'][0]
-        file_posconn = entities_target_neutral_lists[event_name]['neutral_list'][1]
+        biases = {}
+        for model_name in models:
+            # # Load the model and tokenizer
+            # model_name = args.model_name
+            path_to_model = "/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/{}/".format(model_name)
 
-        with open(file_entities, encoding='utf-8') as f:
-            entities = f.readlines()
-            entities = [e.strip().replace("\n", "") for e in entities]
+            tokenizer = AutoTokenizer.from_pretrained(path_to_model)
+            model = AutoModelForMaskedLM.from_pretrained(path_to_model, output_hidden_states=True).cuda()
+            model.eval()
 
-        with open(file_negconn, encoding='utf-8') as f:
-            negconn = f.readlines()
-            negconn = [e.strip().replace("\n", "") for e in negconn]
+            path_nahar = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/An-Nahar/{}/'.format(args.model_name)
+            path_assafir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/As-Safir/{}/'.format(args.model_name)
 
-        with open(file_posconn, encoding='utf-8') as f:
-            posconn = f.readlines()
-            posconn = [e.strip().replace("\n", "") for e in posconn]
+            with open(os.path.join(path_nahar, 'words_per_year.pickle'), 'rb') as handle:
+                embeddings_nahar = pickle.load(handle)
+                print(len(embeddings_nahar))
 
-        neutral_list = negconn + posconn
+            with open(os.path.join(path_assafir, 'words_per_year.pickle'), 'rb') as handle:
+                embeddings_assafir = pickle.load(handle)
+                print(len(embeddings_assafir))
 
-        biases_event = embedding_bias(embeddings_nahar, embeddings_assafir, target_list=entities, neutral_list=neutral_list)
+            print(f"Processing {event_name}")
+            file_entities = entities_target_neutral_lists[event_name]['entities']
+            file_negconn = entities_target_neutral_lists[event_name]['neutral_list'][0]
+            file_posconn = entities_target_neutral_lists[event_name]['neutral_list'][1]
 
+            with open(file_entities, encoding='utf-8') as f:
+                entities = f.readlines()
+                entities = [e.strip().replace("\n", "") for e in entities]
 
-        plot_embedding_bias_over_time(biases=biases_event,
+            with open(file_negconn, encoding='utf-8') as f:
+                negconn = f.readlines()
+                negconn = [e.strip().replace("\n", "") for e in negconn]
+
+            with open(file_posconn, encoding='utf-8') as f:
+                posconn = f.readlines()
+                posconn = [e.strip().replace("\n", "") for e in posconn]
+
+            neutral_list = negconn + posconn
+
+            biases_event_model = embedding_bias(embeddings_nahar, embeddings_assafir, target_list=entities,
+                                                neutral_list=neutral_list)
+
+            biases[model_name] = biases_event_model
+            # read each word
+            # for event_name in entities_target_neutral_lists:
+
+        plot_embedding_bias_over_time(biases=biases,
                                       ylabel=f"Avg. Embedding Bias for {event_name}",
                                       save_dir="plots/",
                                       fig_name=f"{event_name}")
