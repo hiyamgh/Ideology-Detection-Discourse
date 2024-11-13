@@ -81,7 +81,7 @@ if __name__ == "__main__":
     )
     tokenizer = AutoTokenizer.from_pretrained('/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/{}/'.format(args.model_name))
     final_embeddings = get_embeddings_dictionary(words=words, path=path, years=years)
-    save_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/{}/{}/'.format(args.archive, args.model_name)
+    save_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/{}/{}/'.format(args.archive_name, args.model_name)
     mkdir(save_dir)
     with open(os.path.join(save_dir, 'words_per_year.pickle'), 'wb') as handle:
         pickle.dump(final_embeddings, handle, protocol=pickle.HIGHEST_PROTOCOL)
