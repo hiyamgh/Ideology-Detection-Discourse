@@ -21,7 +21,7 @@ def quantile_function(df, lower, upper, col = 'value'):
 
 def calc_distance_between_vectors(vec1, vec2, distype = 'norm'):
     if distype is 'norm':
-        return np.linalg.norm(np.subtract(vec1, vec2))
+        return - np.linalg.norm(np.subtract(vec1, vec2))
     else:
         return cossim(vec1, vec2)
 
