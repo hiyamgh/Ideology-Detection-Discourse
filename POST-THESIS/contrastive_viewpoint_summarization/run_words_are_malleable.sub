@@ -1,0 +1,19 @@
+#!/bin/bash -l
+
+#SBATCH --job-name=mlm # Job name
+#SBATCH --partition=gpu # Partition
+#SBATCH --nodes=1 # Number of nodes
+#SBATCH --gres=gpu:1 # Number of GPUs
+#SBATCH --ntasks-per-node=1  # Number of tasks
+#SBATCH --output=%j.out # Stdout (%j=jobId)
+#SBATCH --error=%j.err # Stderr (%j=jobId)
+#SBATCH --mem=64000
+#SBATCH --time=23:00:00 # Walltime
+#SBATCH -A p118
+
+# Load any necessary modules, in this case OpenMPI with CUDA
+module purge
+module load Python/3.11.3-GCCcore-12.3.0
+module load PyTorch/2.2.2-foss-2023a-CUDA-12.1.1
+
+python words_are_malleable_contextualized.py
