@@ -13,6 +13,7 @@ import time
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from normalization import ArabicNormalizer
 from annoy import AnnoyIndex
+from scipy.linalg import orthogonal_procrustes
 
 
 def get_word_embedding_static(word, tokenizer, model):
@@ -163,7 +164,12 @@ def mkdir(folder):
 
 def get_cosine_sim(v1, v2):
     """ Get the cosine similarity between two vectors """
-    return dot(v1, v2) / (norm(v1) * norm(v2))
+    v1 = v1.flatten()  # Convert to 1D if necessary
+    v2 = v2.flatten()  # Convert to 1D if necessary
+
+    # return dot(v1, v2) / (norm(v1) * norm(v2))
+    print(f'cos sim: {np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))}')
+    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
 
 def load_linear_mapping_matrices(dir_name, mat_name, model1_name, model2_name):
@@ -179,25 +185,52 @@ def load_linear_mapping_matrices(dir_name, mat_name, model1_name, model2_name):
     return R, R_inv
 
 
-def get_stability_linear_mapping_one_word(model1, model2, model1_name, model2_name, mat_name, dir_name_matrices, w):
-    ''' gets the stability values of one oword  only
+def get_stability_linear_mapping_one_word(model1, model2, embeddings_1, embeddings_2, tokenizer_1, tokenizer_2, model1_name, model2_name, mat_name, w):
+    ''' gets the stability values of one word only
         assumes that transformation matrices are already computed
     '''
-    R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name, model1_name=model1_name, model2_name=model2_name)
+    W_i_j, W_j_i = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name, model1_name=model1_name, model2_name=model2_name)
+    V_i_w = get_time_specific_word_embedding(word=w, year=year, embeddings=embeddings_1, tokenizer=tokenizer_1, model=model1)
+    V_j_w = get_time_specific_word_embedding(word=w, year=year, embeddings=embeddings_2, tokenizer=tokenizer_2, model=model2)
 
-    w0 = model1.get_word_vector(w) if ' ' not in w else model1.get_sentence_vector(w)
-    w1 = model2.get_word_vector(w) if ' ' not in w else model2.get_sentence_vector(w)
+    print(f'W_i_j.shape: {W_i_j.shape}, W_j_i.shape: {W_j_i.shape},')
+    print(f'V_i_w.shape: {V_i_w.shape}, V_j_w.shape: {V_j_w.shape}')
+    if V_i_w.shape != (1, 768):
+        V_i_w = V_i_w.reshape(1, -1)
+    if V_j_w.shape != (1, 768):
+        V_j_w = V_j_w.reshape(1, -1)
 
-    # the stability of a word is basically the stability of the vector to its mapped
-    # vector after applying the mapping back and forth
-    sim01 = get_cosine_sim(R_inv.dot(R.dot(w0)), w0)
-    sim10 = get_cosine_sim(R.dot(R_inv.dot(w1)), w1)
+    return compute_stability(V_i_w, V_j_w, W_i_j, W_j_i)
 
-    stability = (sim01 + sim10) / 2
 
-    print('stability (linear) of the word {}: {}'.format(w, stability))
+def compute_stability(V_i_w, V_j_w, W_i_j, W_j_i):
+    if np.isnan(W_i_j).any() or np.isnan(W_j_i).any():
+        print("NaN found in transformation matrices!")
 
-    return sim01, sim10
+    # Ensure vectors are 1D
+    V_i_w = V_i_w.flatten()  # Convert to 1D if necessary
+    V_j_w = V_j_w.flatten()  # Convert to 1D if necessary
+
+    # Reshape V_i_w to (768,) and V_j_w to (768,) for correct multiplication
+    V_i_w = V_i_w.reshape(768, )
+    V_j_w = V_j_w.reshape(768, )
+
+    # Forward-backward mappings
+    mapped_forward = W_j_i @ (W_i_j @ V_i_w)  # W^{j,i}W^{i,j}V^i_w
+    mapped_backward = W_i_j @ (W_j_i @ V_j_w)  # W^{i,j}W^{j,i}V^j_w
+    # Reshape V_j_w correctly to ensure compatibility with W_j_i
+    # mapped_backward = W_i_j @ (W_j_i @ V_j_w.reshape(338, 1))  # W^{i,j}W^{j,i}V^j_w
+
+    print(f'mapped_forward.shape: {mapped_forward.shape}')
+    print(f'mapped_backward.shape: {mapped_backward.shape}')
+
+    # Cosine similarities
+    sim_01 = get_cosine_sim(mapped_forward.reshape(1, -1), V_i_w.reshape(1, -1))
+    sim_10 = get_cosine_sim(mapped_backward.reshape(1, -1), V_j_w.reshape(1, -1))
+
+    # Stability measure
+    stability = (sim_01 + sim_10) / 2
+    return stability
 
 
 def learn_stability_matrices(model1, model2, embeddings_1, embeddings_2, tokenizer_1, tokenizer_2, model1_name, model2_name, subwords, num_steps, mat_name):
@@ -210,160 +243,63 @@ def learn_stability_matrices(model1, model2, embeddings_1, embeddings_2, tokeniz
     :param model1: trained model - embedding 1
     :param model2: trained model - embedding 2
     :param subwords: list of words/stopwords to consider for learning the transformation matrix
-    :param num_steps: number of training steps for gradient descent optimization
-    :param w: the word we want to get the stability for
     :return:
     """
     # print('Getting linear stability for the word {}'.format(w))
-    print('Calculating stability values (linear)')
 
-    def align_embeddings(X, Y, train_steps=100, learning_rate=0.0003):
-        '''
-        Inputs:
-            X: a matrix of dimension (m,n) where the columns are the English embeddings.
-            Y: a matrix of dimension (m,n) where the columns correspong to the French embeddings.
-            train_steps: positive int - describes how many steps will gradient descent algorithm do.
-            learning_rate: positive float - describes how big steps will  gradient descent algorithm do.
-        Outputs:
-            R: a matrix of dimension (n,n) - the projection matrix that minimizes the F norm ||X R -Y||^2
-        '''
-        # the number of columns in X is the number of dimensions for a word vector (e.g. 300)
-        # R is a square matrix with length equal to the number of dimensions in th  word embedding
-        R = np.random.rand(X.shape[1], X.shape[1])
-
-        losses = []
-        t1 = time.time()
-        for i in range(train_steps):
-            loss = compute_loss(X, Y, R)
-
-            if i % 25 == 0:
-                print(f"loss at iteration {i} is: {loss:.4f}")
-
-            losses.append(loss)
-            # use the function that you defined to compute the gradient
-            gradient = compute_gradient(X, Y, R)
-
-            # update R by subtracting the learning rate times gradient
-            R -= learning_rate * gradient
-        t2 = time.time()
-        print('time taken to learn the transformation matrix: {} mins'.format((t2-t1)/60))
-        return R, losses
-
-    def compute_gradient(X, Y, R):
-        '''
-        Inputs:
-           X: a matrix of dimension (m,n) where the columns are the English embeddings.
-           Y: a matrix of dimension (m,n) where the columns correspond to the French embeddings.
-           R: a matrix of dimension (n,n) - transformation matrix from English to French vector space embeddings.
-        Outputs:
-           g: a matrix of dimension (n,n) - gradient of the loss function L for given X, Y and R.
-        '''
-        # m is the number of rows in X
-        rows, columns = X.shape
-
-        # gradient is X^T(XR - Y) * 2/m
-        gradient = (np.dot(X.T, np.dot(X, R) - Y) * 2) / rows
-        assert gradient.shape == (columns, columns)
-
-        return gradient
-
-    def compute_loss(X, Y, R):
-        '''
-        Inputs:
-           X: a matrix of dimension (m,n) where the columns are the English embeddings.
-           Y: a matrix of dimension (m,n) where the columns correspong to the French embeddings.
-           R: a matrix of dimension (n,n) - transformation matrix from English to French vector space embeddings.
-        Outputs:
-           L: a matrix of dimension (m,n) - the value of the loss function for given X, Y and R.
-        '''
-        # m is the number of rows in X
-        m = len(X)
-
-        # diff is XR - Y
-        diff = np.dot(X, R) - Y
-
-        # diff_squared is the element-wise square of the difference
-        diff_squared = diff ** 2
-
-        # sum_diff_squared is the sum of the squared elements
-        sum_diff_squared = diff_squared.sum()
-
-        # loss is the sum_diff_squared divided by the number of examples (m)
-        loss = sum_diff_squared / m
-        return loss
-
-    def get_transformation_matrices():
+    def get_matrices():
         # create the matrices X and Y of source embeddings i and target embeddings j
         X, Y = [], []
 
         for w in subwords:
-
-            # x = model1.get_word_vector(w) if ' ' not in w else model1.get_sentence_vector(w)
-            # y = model2.get_word_vector(w) if ' ' not in w else model2.get_sentence_vector(w)
-
             x = get_time_specific_word_embedding(word=w, year=year, embeddings=embeddings_1, tokenizer=tokenizer_1, model=model1)
             y = get_time_specific_word_embedding(word=w, year=year, embeddings=embeddings_2, tokenizer=tokenizer_2, model=model2)
 
             X.append(x)
             Y.append(y)
 
-        X = np.vstack([x.cpu() for x in X])
-        Y = np.vstack([y.cpu() for y in Y])
+        X = [x.cpu().numpy() if isinstance(x, torch.Tensor) else x for x in X]
+        X = np.vstack(X)
+        Y = [y.cpu().numpy() if isinstance(y, torch.Tensor) else y for y in Y]
+        Y = np.vstack(Y)
 
-        # get the transformation matrix R
-        R, losses = align_embeddings(X=X, Y=Y, train_steps=num_steps)
-        R_inv = np.linalg.inv(R)
-
-        return R, R_inv, losses
+        return X, Y
 
     def save_matrices(R, R_inv):
         # save transformation matrix and its inverse
         np.save(os.path.join(dir_name_matrices, mat_name + '_{}_{}.npy'.format(model1_name, model2_name)), R)
         np.save(os.path.join(dir_name_matrices, mat_name + '_{}_{}_inv.npy'.format(model1_name, model2_name)), R_inv)
 
-    def plot_losses(losses):
-        # dir_name_losses = os.path.join(save_dir, 'loss_plots/')
-        # mkdir(losses)  # create directory of does not already exist
-        plt.plot(range(len(losses)), losses)
-        plt.xlabel('steps')
-        plt.ylabel('Loss')
-
-        plt.savefig(os.path.join(dir_name_losses, mat_name + '_{}_{}.png'.format(model1_name, model2_name)))
-        plt.close()
-
-    # if the matrices exist, return since they will be loaded in the combined method
     if os.path.exists(os.path.join(dir_name_matrices, mat_name + '_{}_{}.npy'.format(model1_name, model2_name))):
         print('matrices found in {}'.format(os.path.join(dir_name_matrices, mat_name + '_{}_{}.npy'.format(model1_name, model2_name))))
         return
 
-    # get the transformation matrix and its inverse
-    R, R_inv, losses = get_transformation_matrices()
+    print('Calculating stability values (linear)')
+    V_i, V_j = get_matrices()
+    assert V_i.shape == V_j.shape
+
+    W_i_j, _ = orthogonal_procrustes(V_i, V_j) # Perform Orthogonal Procrustes
+    print(f'W_i_j.shape: {W_i_j.shape}')
+    W_j_i = np.linalg.inv(W_i_j) # Compute W_j_i as the inverse of W_i_j
+    print(W_j_i)
     print('got transformation matrices ...')
 
-    plot_losses(losses)
-    print('saved plot of loss ...')
-
-    # save the transformation matrices
-    save_matrices(R=R, R_inv=R_inv)
+    save_matrices(R=W_i_j, R_inv=W_j_i)
     print('saved transformation matrices ...')
-    return
 
 
-def get_stability_linear_mapping(model1, model2, model1_name, model2_name, mat_name, words_path=None, save_dir='results/', file_name='stabilities_linear'):
+def get_stability_linear_mapping(model1, model2, embeddings_1, embeddings_2,
+                                 tokenizer_1, tokenizer_2, model1_name, model2_name,
+                                 mat_name, words_path, save_dir='results/',
+                                 file_name='stabilities_linear'):
+
     print('Calculating stability values (linear)')
 
-    if words_path is None:
-        all_vocab = []
-        all_vocab.append(model1.words)
-        all_vocab.append(model2.words)
-        vocab = list(set.intersection(*map(set, all_vocab)))
-
-    else:
-        with open(words_path, 'r', encoding='utf-8') as f:
-            words = f.readlines()
-        words = [w[:-1] for w in words if '\n' in w]  # remove '\n'
-        words = [w for w in words if w.strip() != '']
-        vocab = [w for w in words]
+    with open(words_path, 'r', encoding='utf-8') as f:
+        words = f.readlines()
+    words = [w[:-1] for w in words if '\n' in w]  # remove '\n'
+    words = [w for w in words if w.strip() != '']
+    vocab = [w for w in words]
 
     print('len of vocab: {}'.format(len(vocab)))
     # dictionary mapping each word w to its stability value. Before any processing, stability of any word w is 1.0
@@ -372,10 +308,12 @@ def get_stability_linear_mapping(model1, model2, model1_name, model2_name, mat_n
         stabilities[w] = 1.0
 
     for w in vocab:
-        s_lin12, s_lin21 = get_stability_linear_mapping_one_word(model1, model2, model1_name=model1_name, model2_name=model2_name,
-                                                                 mat_name=mat_name, dir_name_matrices=dir_name_matrices, w=w)
+        stability = get_stability_linear_mapping_one_word(model1, model2,
+                                                                 embeddings_1, embeddings_2,
+                                                                 tokenizer_1, tokenizer_2,
+                                                                 model1_name, model2_name,
+                                                                 mat_name, w)
 
-        stability = (s_lin12 + s_lin21) / 2
         stabilities[w] = stability
 
     # save the stabilities dictionary
@@ -1188,7 +1126,20 @@ if __name__ == '__main__':
     # for idx in indices:
     #     print(candidates[idx])
 
-    stopwords_list = stopwords.words('arabic') # stopwords for linear mapping approach
+    # stopwords_list = stopwords.words('arabic') # stopwords for linear mapping approach
+    stopwords_list = []
+    count = 0
+    with open('top10percent.txt', 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+        for i in range(3016):
+            if "X" not in lines[i]:
+                print(lines[i].replace("\n", ""))
+                stopwords_list.append(lines[i].replace("\n", ""))
+                count += 1
+    print(count)
+    stopwords_list = list(set(stopwords_list))
+    print(len(stopwords_list))
+
     num_steps = args.num_steps # number of training steps for gradient descent
     mat_name = args.mat_name  # prefix for the matrix name of the transformation matrix for saving purposes
 
@@ -1220,6 +1171,20 @@ if __name__ == '__main__':
                                  subwords=stopwords_list,
                                  num_steps=num_steps,
                                  mat_name=mat_name)
+
+        for w in stopwords_list:
+            s = get_stability_linear_mapping_one_word(model1=model_nahar,
+                                 model2=model_assafir,
+                                 embeddings_1=embeddings_nahar,
+                                 embeddings_2=embeddings_assafir,
+                                 tokenizer_1=tokenizer_nahar,
+                                 tokenizer_2=tokenizer_assafir,
+                                 model1_name=model1_name,
+                                 model2_name=model2_name,
+                                 mat_name=mat_name,
+                                w=w)
+
+            print(f'stability of {w} is: {s}')
 
     #     get_stability_linear_mapping(model1=model_nahar,
     #                                  model2=model_assafir,
