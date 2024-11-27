@@ -1,11 +1,8 @@
 import torch
 import os
 import numpy as np
-from numpy import dot
-from numpy.linalg import norm
 import pickle
 import argparse
-from nltk.corpus import stopwords
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -167,6 +164,16 @@ def get_cosine_sim(v1, v2):
     v1 = v1.flatten()  # Convert to 1D if necessary
     v2 = v2.flatten()  # Convert to 1D if necessary
 
+    try:
+        v1 = v1.cpu().numpy()
+    except:
+        pass
+
+    try:
+        v2 = v2.cpu().numpy()
+    except:
+        pass
+
     # return dot(v1, v2) / (norm(v1) * norm(v2))
     print(f'cos sim: {np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))}')
     return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
@@ -215,9 +222,28 @@ def compute_stability(V_i_w, V_j_w, W_i_j, W_j_i):
     V_i_w = V_i_w.reshape(768, )
     V_j_w = V_j_w.reshape(768, )
 
+    try:
+        V_i_w = V_i_w.cpu().numpy()
+    except:
+        pass
+    try:
+        V_j_w = V_j_w.cpu().numpy()
+    except:
+        pass
+    try:
+        W_i_j = W_i_j.cpu().numpy()
+    except:
+        pass
+
+    try:
+        W_j_i = W_j_i.cpu().numpy()
+    except:
+        pass
+
     # Forward-backward mappings
-    mapped_forward = W_j_i @ (W_i_j @ V_i_w)  # W^{j,i}W^{i,j}V^i_w
-    mapped_backward = W_i_j @ (W_j_i @ V_j_w)  # W^{i,j}W^{j,i}V^j_w
+    mapped_forward = W_j_i.dot(W_i_j.dot(V_i_w))  # W^{j,i}W^{i,j}V^i_w
+    mapped_backward = W_i_j.dot(W_j_i.dot(V_j_w))  # W^{i,j}W^{j,i}V^j_w
+
     # Reshape V_j_w correctly to ensure compatibility with W_j_i
     # mapped_backward = W_i_j @ (W_j_i @ V_j_w.reshape(338, 1))  # W^{i,j}W^{j,i}V^j_w
 
@@ -324,18 +350,189 @@ def get_stability_linear_mapping(model1, model2, embeddings_1, embeddings_2,
     return stabilities
 
 
-def get_stability_combined_one_word(w, models, models_names, mat_name, dir_name_matrices, k=50):
-    """ gets the combined stability value of a certain word w """
-    if len(models) > 2:
+def get_stability_combined_one_word(models,
+                           embeddings,
+                           tokenizers,
+                           models_names,
+                           mat_name,
+                           word,
+                           year,
+                           k=50):
+    print('Calculating stability values (combined) - k={}'.format(k))
+    similarities = []
+    for i in range(len(models)):
+        for j in range(len(models)):
+            if i != j:
+                nnsims1 = get_nearest_neighbors(word=word, year=year, embeddings=embeddings[i], tokenizer=tokenizers[i],
+                                                model=models[i])
+                nnsims2 = get_nearest_neighbors(word=word, year=year, embeddings=embeddings[j], tokenizer=tokenizers[j],
+                                                model=models[j])
+
+                # nn1 = [n[1] for n in nnsims1]  # get only the neighbour, not the similarity
+                # nn2 = [n[1] for n in nnsims2]  # get only the neighbour, not the similarity
+                nn1 = nnsims1
+                nn2 = nnsims2
+
+                inter = set.intersection(*map(set, [nn1, nn2]))
+
+                ranks1, ranks2 = {}, {}  # for storing indices
+                not_found1, not_found2 = [], []  # for storing words that are found in one list, but not in the other
+
+                # loop over neighbors of w in embedding space 1, check if they're in the neighbors of w in embedding space 2
+                # calculate their rank, if yes.
+                for wp in nn1:
+                    if wp in nn2:
+                        ranks1[wp] = nn2.index(wp)  # index of wp in nn2
+                    else:
+                        # if not present, it has no index
+                        not_found1.append(wp)
+
+                # loop over neighbors of w in embedding space 2, check if they're in the neighbors of w in embedding space 1
+                # calculate their rank, if yes.
+                for wp in nn2:
+                    if wp in nn1:
+                        ranks2[wp] = nn1.index(wp)  # index of wp in nn1
+                    else:
+                        # if not present, it has no index
+                        not_found2.append(wp)
+
+                sum_ranks1, sum_ranks2 = 0.0, 0.0
+                for wp in ranks1:
+                    sum_ranks1 += ranks1[wp]
+                for wp in ranks2:
+                    sum_ranks2 += ranks2[wp]
+
+                Count_neig12 = (len(nn1) * len(inter)) - sum_ranks1
+                Count_neig21 = (len(nn2) * len(inter)) - sum_ranks2
+
+                # if there are some words that are found in one list but not in the other
+                # then calculate their stability using linear mapping approach
+                if not_found1 != [] or not_found2 != []:
+                    R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name,
+                                                            model1_name=models_names[0],
+                                                            model2_name=models_names[1])
+
+                    sim_lin01, sim_lin10 = 0.0, 0.0
+                    for wp in not_found1:
+                        # w_v = models[j].get_word_vector(w) if ' ' not in w else models[j].get_sentence_vector(w)
+                        # wp_v = models[i].get_word_vector(wp) if ' ' not in wp else models[i].get_sentence_vector(wp)
+
+                        w_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[j],
+                                                               tokenizer=tokenizers[j], model=models[j])
+                        wp_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[i],
+                                                                tokenizer=tokenizers[i], model=models[i])
+
+                        w_v = w_v.flatten()
+                        w_v.reshape(768, )
+
+                        wp_v = wp_v.flatten()
+                        wp_v.reshape(768, )
+
+                        try:
+                            R = R.cpu().numpy()
+                        except:
+                            pass
+
+                        try:
+                            val = get_cosine_sim(R.dot(wp_v), w_v)
+                        except:
+                            val = get_cosine_sim(R.dot(wp_v.cpu().numpy()), w_v)
+                        sim_lin01 += val
+                        # print('{} - {} - {}'.format(w, wp, val))
+
+                    sim_lin01 /= len(not_found1)
+
+                    for wp in not_found2:
+                        # w_v = models[i].get_word_vector(w) if ' ' not in w else models[i].get_sentence_vector(w)
+                        # wp_v = models[j].get_word_vector(wp) if ' ' not in wp else models[j].get_sentence_vector(wp)
+
+                        w_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[i],
+                                                               tokenizer=tokenizers[i], model=models[i])
+                        wp_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[j],
+                                                                tokenizer=tokenizers[j], model=models[j])
+
+                        w_v = w_v.flatten()
+                        w_v.reshape(768, )
+
+                        wp_v = wp_v.flatten()
+                        wp_v.reshape(768, )
+
+                        try:
+                            R_inv = R_inv.cpu().numpy()
+                        except:
+                            pass
+
+                        try:
+                            val = get_cosine_sim(R_inv.dot(wp_v), w_v)
+                        except:
+                            val = get_cosine_sim(R_inv.dot(wp_v.cpu().numpy()), w_v)
+                        sim_lin10 += val
+                        # print('{} - {} - {}'.format(w, wp, val))
+                    sim_lin10 /= len(not_found2)
+
+                st_neig = (Count_neig12 + Count_neig21) / (2 * sum(
+                    [i for i in range(1, k + 1)]))  # this is 2 * (k)(k+1) where k is the number of nearest neighbors
+                st_lin = None
+                if not_found1 != [] or not_found2 != []:
+                    st_lin = np.mean([sim_lin01, sim_lin10])
+
+                # calculate value of lambda
+                if nn1 == nn2:
+                    # when the nearest neighbours of w are exactly the same,
+                    # and have the same order in embedding 1 and embedding 2
+                    # lmbda = 1.0
+                    st = st_neig
+                    print('{}-{}: {}: st_neigh: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], word,
+                                                                               st_neig, '-', st))
+                elif Count_neig12 == 0 and Count_neig12 == 0:
+                    # when the nearest neighbours in embedding 1 are completely
+                    # not found in embedding 2, and vice versa would be also true
+                    # lmbda = 0
+                    st = st_lin
+                    print('{}-{}: {}: st_neigh: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], word, '-',
+                                                                               st_lin, st))
+                else:
+                    # some neighbours of w in embedding 1 are found in embedding 2,
+                    # and vice versa would be true
+                    lmbda = 0.5
+                    st = (lmbda * st_neig) + ((1 - lmbda) * st_lin)
+                    print(
+                        '{}-{}: {}: st_nei: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], word, st_neig,
+                                                                           st_lin, st))
+
+                similarities.append(st)
+
+    st = np.mean(similarities)
+    print('final combined stability of: {} = {}'.format(word, st))
+    return st
+
+
+def get_stability_combined(models,
+                           embeddings,
+                           tokenizers,
+                           models_names,
+                           mat_name,
+                           words,
+                           year,
+                           k=50, save_dir='results/',
+                           file_name='stabilities_combined'):
+    print('Calculating stability values (combined) - k={}'.format(k))
+
+    vocab = words
+    print('len of vocab: {}'.format(len(vocab)))
+    stabilities = {}
+    for w in vocab:
         similarities = []
         for i in range(len(models)):
             for j in range(len(models)):
                 if i != j:
-                    nnsims1 = models[i].get_nearest_neighbors(w, k)
-                    nnsims2 = models[j].get_nearest_neighbors(w, k)
+                    nnsims1 = get_nearest_neighbors(word=w, year=year, embeddings=embeddings[i], tokenizer=tokenizers[i], model=models[i])
+                    nnsims2 = get_nearest_neighbors(word=w, year=year, embeddings=embeddings[j], tokenizer=tokenizers[j], model=models[j])
 
-                    nn1 = [n[1] for n in nnsims1]  # get only the neighbour, not the similarity
-                    nn2 = [n[1] for n in nnsims2]  # get only the neighbour, not the similarity
+                    # nn1 = [n[1] for n in nnsims1]  # get only the neighbour, not the similarity
+                    # nn2 = [n[1] for n in nnsims2]  # get only the neighbour, not the similarity
+                    nn1 = nnsims1
+                    nn2 = nnsims2
 
                     inter = set.intersection(*map(set, [nn1, nn2]))
 
@@ -372,29 +569,67 @@ def get_stability_combined_one_word(w, models, models_names, mat_name, dir_name_
                     # if there are some words that are found in one list but not in the other
                     # then calculate their stability using linear mapping approach
                     if not_found1 != [] or not_found2 != []:
-                        R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name, model1_name=models_names[i], model2_name=models_names[j])
+                        R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name,
+                                                                model1_name=models_names[0],
+                                                                model2_name=models_names[1])
 
                         sim_lin01, sim_lin10 = 0.0, 0.0
                         for wp in not_found1:
-                            w_v = models[j].get_word_vector(w) if ' ' not in w else models[j].get_sentence_vector(w)
-                            wp_v = models[i].get_word_vector(wp) if ' ' not in wp else models[i].get_sentence_vector(wp)
+                            # w_v = models[j].get_word_vector(w) if ' ' not in w else models[j].get_sentence_vector(w)
+                            # wp_v = models[i].get_word_vector(wp) if ' ' not in wp else models[i].get_sentence_vector(wp)
 
-                            val = get_cosine_sim(R.dot(wp_v), w_v)
+                            w_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[j], tokenizer=tokenizers[j], model=models[j])
+                            wp_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[i], tokenizer=tokenizers[i], model=models[i])
+
+                            w_v = w_v.flatten()
+                            w_v.reshape(768, )
+
+                            wp_v = wp_v.flatten()
+                            wp_v.reshape(768, )
+
+                            try:
+                                R = R.cpu().numpy()
+                            except:
+                                pass
+
+                            try:
+                                val = get_cosine_sim(R.dot(wp_v), w_v)
+                            except:
+                                val = get_cosine_sim(R.dot(wp_v.cpu().numpy()), w_v)
                             sim_lin01 += val
-                            print('{} - {} - {}'.format(w, wp, val))
+                            # print('{} - {} - {}'.format(w, wp, val))
+
                         sim_lin01 /= len(not_found1)
 
                         for wp in not_found2:
-                            w_v = models[i].get_word_vector(w) if ' ' not in w else models[i].get_sentence_vector(w)
-                            wp_v = models[j].get_word_vector(wp) if ' ' not in wp else models[j].get_sentence_vector(wp)
+                            # w_v = models[i].get_word_vector(w) if ' ' not in w else models[i].get_sentence_vector(w)
+                            # wp_v = models[j].get_word_vector(wp) if ' ' not in wp else models[j].get_sentence_vector(wp)
 
-                            val = get_cosine_sim(R_inv.dot(wp_v), w_v)
+                            w_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[i],
+                                                                   tokenizer=tokenizers[i], model=models[i])
+                            wp_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[j],
+                                                                    tokenizer=tokenizers[j], model=models[j])
+
+                            w_v = w_v.flatten()
+                            w_v.reshape(768, )
+
+                            wp_v = wp_v.flatten()
+                            wp_v.reshape(768, )
+
+                            try:
+                                R_inv = R_inv.cpu().numpy()
+                            except:
+                                pass
+
+                            try:
+                                val = get_cosine_sim(R_inv.dot(wp_v), w_v)
+                            except:
+                                val = get_cosine_sim(R_inv.dot(wp_v.cpu().numpy()), w_v)
                             sim_lin10 += val
-                            print('{} - {} - {}'.format(w, wp, val))
+                            # print('{} - {} - {}'.format(w, wp, val))
                         sim_lin10 /= len(not_found2)
 
-                    st_neig = (Count_neig12 + Count_neig21) / (2 * sum(
-                        [i for i in range(1, k + 1)]))  # this is 2 * (k)(k+1) where k is the number of nearest neighbors
+                    st_neig = (Count_neig12 + Count_neig21) / (2 * sum([i for i in range(1, k + 1)]))  # this is 2 * (k)(k+1) where k is the number of nearest neighbors
                     st_lin = None
                     if not_found1 != [] or not_found2 != []:
                         st_lin = np.mean([sim_lin01, sim_lin10])
@@ -405,347 +640,24 @@ def get_stability_combined_one_word(w, models, models_names, mat_name, dir_name_
                         # and have the same order in embedding 1 and embedding 2
                         # lmbda = 1.0
                         st = st_neig
-                        print('{}: st_neigh: {}, st_lin: {}, st: {}'.format(w, st_neig, '-', st))
+                        print('{}-{}: {}: st_neigh: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], w, st_neig, '-', st))
                     elif Count_neig12 == 0 and Count_neig12 == 0:
                         # when the nearest neighbours in embedding 1 are completely
                         # not found in embedding 2, and vice versa would be also true
                         # lmbda = 0
                         st = st_lin
-                        print('{}: st_neigh: {}, st_lin: {}, st: {}'.format(w, '-', st_lin, st))
+                        print('{}-{}: {}: st_neigh: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], w,  '-', st_lin, st))
                     else:
                         # some neighbours of w in embedding 1 are found in embedding 2,
                         # and vice versa would be true
                         lmbda = 0.5
                         st = (lmbda * st_neig) + ((1 - lmbda) * st_lin)
-                        print('{}: st_nei: {}, st_lin: {}, st: {}'.format(w, st_neig, st_lin, st))
+                        print('{}-{}: {}: st_nei: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], w,  st_neig, st_lin, st))
 
                     similarities.append(st)
 
-        return np.mean(similarities)
-
-    else:
-        nnsims1 = models[0].get_nearest_neighbors(w, k)
-        nnsims2 = models[1].get_nearest_neighbors(w, k)
-
-        nn1 = [n[1] for n in nnsims1]  # get only the neighbour, not the similarity
-        nn2 = [n[1] for n in nnsims2]  # get only the neighbour, not the similarity
-
-        inter = set.intersection(*map(set, [nn1, nn2]))
-
-        ranks1, ranks2 = {}, {}  # for storing indices
-        not_found1, not_found2 = [], []  # for storing words that are found in one list, but not in the other
-
-        # loop over neighbors of w in embedding space 1, check if they're in the neighbors of w in embedding space 2
-        # calculate their rank, if yes.
-        for wp in nn1:
-            if wp in nn2:
-                ranks1[wp] = nn2.index(wp)  # index of wp in nn2
-
-            else:
-                # if not present, it has no index
-                not_found1.append(wp)
-
-        # loop over neighbors of w in embedding space 2, check if they're in the neighbors of w in embedding space 1
-        # calculate their rank, if yes.
-        for wp in nn2:
-            if wp in nn1:
-                ranks2[wp] = nn1.index(wp)  # index of wp in nn1
-
-            else:
-                # if not present, it has no index
-                not_found2.append(wp)
-
-        sum_ranks1, sum_ranks2 = 0.0, 0.0
-        for wp in ranks1:
-            sum_ranks1 += ranks1[wp]
-        for wp in ranks2:
-            sum_ranks2 += ranks2[wp]
-
-        Count_neig12 = (len(nn1) * len(inter)) - sum_ranks1
-        Count_neig21 = (len(nn2) * len(inter)) - sum_ranks2
-
-        # if there are some words that are found in one list but not in the other
-        # then calculate their stability using linear mapping approach
-        if not_found1 != [] or not_found2 != []:
-            R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name,
-                                                    model1_name=models_names[0], model2_name=models_names[1])
-
-            sim_lin01, sim_lin10 = 0.0, 0.0
-            for wp in not_found1:
-                w_v = models[1].get_word_vector(w) if ' ' not in w else models[1].get_sentence_vector(w)
-                wp_v = models[0].get_word_vector(wp) if ' ' not in wp else models[0].get_sentence_vector(wp)
-
-                val = get_cosine_sim(R.dot(wp_v), w_v)
-                sim_lin01 += val
-                # print('{} - {} - {}'.format(w, wp, val))
-            sim_lin01 /= len(not_found1)
-
-            for wp in not_found2:
-                w_v = models[0].get_word_vector(w) if ' ' not in w else models[0].get_sentence_vector(w)
-                wp_v = models[1].get_word_vector(wp) if ' ' not in wp else models[1].get_sentence_vector(wp)
-
-                val = get_cosine_sim(R_inv.dot(wp_v), w_v)
-                sim_lin10 += val
-                # print('{} - {} - {}'.format(w, wp, val))
-            sim_lin10 /= len(not_found2)
-
-        st_neig = (Count_neig12 + Count_neig21) / (2 * sum(
-            [i for i in range(1, k + 1)]))  # this is 2 * (k)(k+1) where k is the number of nearest neighbors
-        st_lin = None
-        if not_found1 != [] or not_found2 != []:
-            st_lin = np.mean([sim_lin01, sim_lin10])
-
-        # calculate value of lambda
-        if nn1 == nn2:
-            # when the nearest neighbours of w are exactly the same,
-            # and have the same order in embedding 1 and embedding 2
-            # lmbda = 1.0
-            st = st_neig
-            print('{}: st_neigh: {}, st_lin: {}, st: {}'.format(w, st_neig, '-', st))
-        elif Count_neig12 == 0 and Count_neig12 == 0:
-            # when the nearest neighbours in embedding 1 are completely
-            # not found in embedding 2, and vice versa would be also true
-            # lmbda = 0
-            st = st_lin
-            print('{}: st_neigh: {}, st_lin: {}, st: {}'.format(w, '-', st_lin, st))
-        else:
-            # some neighbours of w in embedding 1 are found in embedding 2,
-            # and vice versa would be true
-            lmbda = 0.5
-            st = (lmbda * st_neig) + ((1 - lmbda) * st_lin)
-            print('{}: st_nei: {}, st_lin: {}, st: {}'.format(w, st_neig, st_lin, st))
-
-        return st
-
-
-def get_stability_combined(models, models_names, mat_name, words_path=None, k=50, save_dir='results/',
-                           file_name='stabilities_combined'):
-    """
-    Method that applies Algorithm 2 (Combined method) of Words are Malleable paper by Azarbonyad et al (2017)
-    However, we have modified the code from the one presented in the paper in few places
-    because of the fact that we can get vectors of words that are OOV (out-of-vocabulary)
-    therefore, no need for getting the words in the intersection of two embedding spaces as
-    most of the words we were interested in are in fact OOV due to spelling errors
-    caused by applying OCR to digitized historical documents.
-
-    Also, the code is formatted to work with t=1, i.e., we are only using direct neighbors of words (t=1)
-    and not neighbors of neighbors (t >= 1). Therefore, we removed MinMax normalization step
-
-    :param model1: fasttext model representing embedding space 1
-    :param model2: fasttext model representing embedding space 2
-    :param mat_name: name of the transformation matrix calculated via linear mapping that maps from embedding space 1 to embedding space 2
-    :param words_path: path to file that contains words that are OOV
-    :param k: number of nearest neighbors to extract per word
-    :param t: number of iterations
-    :param save_dir: directory to save final stabilities per word (saved as a python dictionary)
-    :param file_name: name of the final stabilities file (saved as a python dictionary)
-    :return:
-    """
-    print('Calculating stability values (combined) - k={}'.format(k))
-    if words_path is None:
-        all_vocab = []
-        all_vocab.append(model1.words)
-        all_vocab.append(model2.words)
-        vocab = list(set.intersection(*map(set, all_vocab)))
-
-    else:
-        with open(words_path, 'r', encoding='utf-8') as f:
-            words = f.readlines()
-        words = [w[:-1] for w in words if '\n' in w]  # remove '\n'
-        words = [w for w in words if w.strip() != '']
-        vocab = [w.strip() for w in words]
-
-    print('len of vocab: {}'.format(len(vocab)))
-    stabilities = {}
-    for w in vocab:
-        if len(models) > 2:
-            similarities = []
-            for i in range(len(models)):
-                for j in range(len(models)):
-                    if i != j:
-                        nnsims1 = models[i].get_nearest_neighbors(w, k)
-                        nnsims2 = models[j].get_nearest_neighbors(w, k)
-
-                        nn1 = [n[1] for n in nnsims1]  # get only the neighbour, not the similarity
-                        nn2 = [n[1] for n in nnsims2]  # get only the neighbour, not the similarity
-
-                        inter = set.intersection(*map(set, [nn1, nn2]))
-
-                        ranks1, ranks2 = {}, {}  # for storing indices
-                        not_found1, not_found2 = [], []  # for storing words that are found in one list, but not in the other
-
-                        # loop over neighbors of w in embedding space 1, check if they're in the neighbors of w in embedding space 2
-                        # calculate their rank, if yes.
-                        for wp in nn1:
-                            if wp in nn2:
-                                ranks1[wp] = nn2.index(wp)  # index of wp in nn2
-                            else:
-                                # if not present, it has no index
-                                not_found1.append(wp)
-
-                        # loop over neighbors of w in embedding space 2, check if they're in the neighbors of w in embedding space 1
-                        # calculate their rank, if yes.
-                        for wp in nn2:
-                            if wp in nn1:
-                                ranks2[wp] = nn1.index(wp)  # index of wp in nn1
-                            else:
-                                # if not present, it has no index
-                                not_found2.append(wp)
-
-                        sum_ranks1, sum_ranks2 = 0.0, 0.0
-                        for wp in ranks1:
-                            sum_ranks1 += ranks1[wp]
-                        for wp in ranks2:
-                            sum_ranks2 += ranks2[wp]
-
-                        Count_neig12 = (len(nn1) * len(inter)) - sum_ranks1
-                        Count_neig21 = (len(nn2) * len(inter)) - sum_ranks2
-
-                        # if there are some words that are found in one list but not in the other
-                        # then calculate their stability using linear mapping approach
-                        if not_found1 != [] or not_found2 != []:
-                            R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name, model1_name=models_names[i], model2_name=models_names[j])
-
-                            sim_lin01, sim_lin10 = 0.0, 0.0
-                            for wp in not_found1:
-                                w_v = models[j].get_word_vector(w) if ' ' not in w else models[j].get_sentence_vector(w)
-                                wp_v = models[i].get_word_vector(wp) if ' ' not in wp else models[i].get_sentence_vector(wp)
-
-                                val = get_cosine_sim(R.dot(wp_v), w_v)
-                                sim_lin01 += val
-                                # print('{} - {} - {}'.format(w, wp, val))
-                            sim_lin01 /= len(not_found1)
-
-                            for wp in not_found2:
-                                w_v = models[i].get_word_vector(w) if ' ' not in w else models[i].get_sentence_vector(w)
-                                wp_v = models[j].get_word_vector(wp) if ' ' not in wp else models[j].get_sentence_vector(wp)
-
-                                val = get_cosine_sim(R_inv.dot(wp_v), w_v)
-                                sim_lin10 += val
-                                # print('{} - {} - {}'.format(w, wp, val))
-                            sim_lin10 /= len(not_found2)
-
-                        st_neig = (Count_neig12 + Count_neig21) / (2 * sum([i for i in range(1,
-                                                                                             k + 1)]))  # this is 2 * (k)(k+1) where k is the number of nearest neighbors
-                        st_lin = None
-                        if not_found1 != [] or not_found2 != []:
-                            st_lin = np.mean([sim_lin01, sim_lin10])
-
-                        # calculate value of lambda
-                        if nn1 == nn2:
-                            # when the nearest neighbours of w are exactly the same,
-                            # and have the same order in embedding 1 and embedding 2
-                            # lmbda = 1.0
-                            st = st_neig
-                            print('{}-{}: {}: st_neigh: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], w, st_neig, '-', st))
-                        elif Count_neig12 == 0 and Count_neig12 == 0:
-                            # when the nearest neighbours in embedding 1 are completely
-                            # not found in embedding 2, and vice versa would be also true
-                            # lmbda = 0
-                            st = st_lin
-                            print('{}-{}: {}: st_neigh: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], w, '-', st_lin, st))
-                        else:
-                            # some neighbours of w in embedding 1 are found in embedding 2,
-                            # and vice versa would be true
-                            lmbda = 0.5
-                            st = (lmbda * st_neig) + ((1 - lmbda) * st_lin)
-                            print('{}-{}: {}: st_nei: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], w, st_neig, st_lin, st))
-
-                        similarities.append(st)
-
-            stabilities[w] = np.mean(similarities)
-            print('final combined stability of: {} = {}'.format(w, np.mean(similarities)))
-
-        else:
-            nnsims1 = models[0].get_nearest_neighbors(w, k)
-            nnsims2 = models[1].get_nearest_neighbors(w, k)
-
-            nn1 = [n[1] for n in nnsims1]  # get only the neighbour, not the similarity
-            nn2 = [n[1] for n in nnsims2]  # get only the neighbour, not the similarity
-
-            inter = set.intersection(*map(set, [nn1, nn2]))
-
-            ranks1, ranks2 = {}, {}  # for storing indices
-            not_found1, not_found2 = [], []  # for storing words that are found in one list, but not in the other
-
-            # loop over neighbors of w in embedding space 1, check if they're in the neighbors of w in embedding space 2
-            # calculate their rank, if yes.
-            for wp in nn1:
-                if wp in nn2:
-                    ranks1[wp] = nn2.index(wp)  # index of wp in nn2
-                else:
-                    # if not present, it has no index
-                    not_found1.append(wp)
-
-            # loop over neighbors of w in embedding space 2, check if they're in the neighbors of w in embedding space 1
-            # calculate their rank, if yes.
-            for wp in nn2:
-                if wp in nn1:
-                    ranks2[wp] = nn1.index(wp)  # index of wp in nn1
-                else:
-                    # if not present, it has no index
-                    not_found2.append(wp)
-
-            sum_ranks1, sum_ranks2 = 0.0, 0.0
-            for wp in ranks1:
-                sum_ranks1 += ranks1[wp]
-            for wp in ranks2:
-                sum_ranks2 += ranks2[wp]
-
-            Count_neig12 = (len(nn1) * len(inter)) - sum_ranks1
-            Count_neig21 = (len(nn2) * len(inter)) - sum_ranks2
-
-            # if there are some words that are found in one list but not in the other
-            # then calculate their stability using linear mapping approach
-            if not_found1 != [] or not_found2 != []:
-                R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name, model1_name=models_names[0], model2_name=models_names[1])
-
-                sim_lin01, sim_lin10 = 0.0, 0.0
-                for wp in not_found1:
-                    w_v = models[1].get_word_vector(w) if ' ' not in w else models[1].get_sentence_vector(w)
-                    wp_v = models[0].get_word_vector(wp) if ' ' not in wp else models[0].get_sentence_vector(wp)
-
-                    val = get_cosine_sim(R.dot(wp_v), w_v)
-                    sim_lin01 += val
-                    # print('{} - {} - {}'.format(w, wp, val))
-                sim_lin01 /= len(not_found1)
-
-                for wp in not_found2:
-                    w_v = models[0].get_word_vector(w) if ' ' not in w else models[0].get_sentence_vector(w)
-                    wp_v = models[1].get_word_vector(wp) if ' ' not in wp else models[1].get_sentence_vector(wp)
-
-                    val = get_cosine_sim(R_inv.dot(wp_v), w_v)
-                    sim_lin10 += val
-                    # print('{} - {} - {}'.format(w, wp, val))
-                sim_lin10 /= len(not_found2)
-
-            st_neig = (Count_neig12 + Count_neig21) / (2 * sum([i for i in range(1, k + 1)]))  # this is 2 * (k)(k+1) where k is the number of nearest neighbors
-            st_lin = None
-            if not_found1 != [] or not_found2 != []:
-                st_lin = np.mean([sim_lin01, sim_lin10])
-
-            # calculate value of lambda
-            if nn1 == nn2:
-                # when the nearest neighbours of w are exactly the same,
-                # and have the same order in embedding 1 and embedding 2
-                # lmbda = 1.0
-                st = st_neig
-                print('{}: st_neigh: {}, st_lin: {}, st: {}'.format(w, st_neig, '-', st))
-            elif Count_neig12 == 0 and Count_neig12 == 0:
-                # when the nearest neighbours in embedding 1 are completely
-                # not found in embedding 2, and vice versa would be also true
-                # lmbda = 0
-                st = st_lin
-                print('{}: st_neigh: {}, st_lin: {}, st: {}'.format(w, '-', st_lin, st))
-            else:
-                # some neighbours of w in embedding 1 are found in embedding 2,
-                # and vice versa would be true
-                lmbda = 0.5
-                st = (lmbda * st_neig) + ((1 - lmbda) * st_lin)
-                print('{}: st_nei: {}, st_lin: {}, st: {}'.format(w, st_neig, st_lin, st))
-
-            stabilities[w] = st
-            print('final combined stability of: {} = {}'.format(w, st))
+        stabilities[w] = np.mean(similarities)
+        print('final combined stability of: {} = {}'.format(w, np.mean(similarities)))
 
     # save the stabilities dictionary
     mkdir(save_dir)
@@ -753,43 +665,6 @@ def get_stability_combined(models, models_names, mat_name, words_path=None, k=50
         pickle.dump(stabilities, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     return stabilities
-
-
-def get_stability_neighbors_one_word(w, models, k=50):
-    similarities = []
-    for i in range(len(models)):
-        for j in range(len(models)):
-            if i != j:
-                nnsims1 = models[i].get_nearest_neighbors(w, k)
-                nnsims2 = models[j].get_nearest_neighbors(w, k)
-
-                nn1 = [n[1] for n in nnsims1]  # get only the neighbor, not the similarity
-                nn2 = [n[1] for n in nnsims2]  # get only the neighbor, not the similarity
-
-                sim1, sim2 = 0, 0
-                for wp in nn2:
-                    w_v = models[i].get_word_vector(w) if ' ' not in w else models[i].get_sentence_vector(w)
-                    wp_v = models[i].get_word_vector(wp) if ' ' not in wp else models[i].get_sentence_vector(wp)
-
-                    sim2 += get_cosine_sim(w_v, wp_v)
-
-                sim2 /= len(nn2)
-
-                for wp in nn1:
-                    w_v = models[j].get_word_vector(w) if ' ' not in w else models[j].get_sentence_vector(w)
-                    wp_v = models[j].get_word_vector(wp) if ' ' not in wp else models[j].get_sentence_vector(wp)
-
-                    sim1 += get_cosine_sim(w_v, wp_v)
-
-                sim1 /= len(nn1)
-
-                # calculate stability as the average of both similarities
-                similarities.append(sim1)
-                similarities.append(sim2)
-
-    # calculate the word's stability
-    st = np.mean(similarities)
-    print('Neighbor\'s approach stability: {}: {}'.format(w, st))
 
 
 def get_stability_neighbors(models, words_path=None, k=50, save_dir='results/', file_name='stabilities_neighbors'):
@@ -1008,6 +883,71 @@ def get_time_specific_word_embedding(word, year, embeddings, tokenizer, model):
         return embedding
 
 
+def get_nearest_neighbors(word, year, embeddings, tokenizer, model):
+    vocab_path = "vocabulary_embeddings/An-Nahar/UBC-NLP-MARBERTv2/"
+    big_dict = {}
+    for file in os.listdir(vocab_path):
+        with open(os.path.join(vocab_path, file), 'rb') as f:
+            loaded_dict = pickle.load(f)
+            for k, v in loaded_dict.items():
+                if year not in k:
+                    continue
+                else:
+                    big_dict[k] = v
+
+    vocab_names = [k for k in big_dict.keys()]
+    vocab_embeds = big_dict.values()
+
+    # Prepare embeddings
+    embeddings_mod = []
+    for i, emb in enumerate(vocab_embeds):
+        if isinstance(emb, np.ndarray):  # Ensure it's a NumPy array
+            pass
+        else:
+            emb = np.array(emb.cpu())  # Convert to NumPy if needed
+        if emb.shape != (1, 768):  # Reshape to (1, 768) if necessary
+            emb = emb.reshape(1, -1)
+        embeddings_mod.append(emb)
+
+    # Convert to NumPy array
+    embeddings_mod = np.array(embeddings_mod)  # Shape will be (N, 1, 768)
+    print("Embeddings shape:", embeddings_mod.shape)
+
+    # Build the Annoy index
+    f = embeddings_mod.shape[2]  # Dimensionality of embeddings (768)
+    annoy_index = AnnoyIndex(f, 'angular')
+
+    for i, emb in enumerate(embeddings_mod):
+        try:
+            annoy_index.add_item(i, emb.flatten())  # Flatten to 1D
+            print("Added embedding:", i)
+        except Exception as e:
+            print("Error adding embedding:", e)
+
+    annoy_index.build(10)  # Build the index with 10 trees
+
+    # Query for nearest neighbors
+    query = get_time_specific_word_embedding(
+        word=word,
+        year=year,
+        embeddings=embeddings,
+        tokenizer=tokenizer,
+        model=model
+    )
+    query = query.flatten()  # Ensure query is 1D
+    K = 100
+    indices = annoy_index.get_nns_by_vector(query, K)
+
+    nearest_neighbors = []
+    # Output the nearest neighbors
+    print(f"Top {K} nearest neighbors to '{word}':")
+    for idx in indices:
+        print(vocab_names[idx])
+        nearest_neighbors.append(vocab_names[idx])
+
+    return nearest_neighbors
+
+
 if __name__ == '__main__':
     print('hello')
     parser = argparse.ArgumentParser()
@@ -1059,74 +999,14 @@ if __name__ == '__main__':
     k = int(args.k)
     save_dir = args.save_dir
 
-    model1_name = '1982-nahar'
-    model2_name = '1982-assafir'
-
     # Example texts
-    year = "06"
+    year = args.month_name
     word = "الحكم"
 
-    # path to vocabulary embeddings
-    path_nahar_vocab = "vocabulary_embeddings_copy/An-Nahar/{}".format(model_name)
-    path_assafir_vocab = "vocabulary_embeddings_copy/As-Safir/{}".format(model_name)
+    model1_name = f'1982-nahar-{year}'
+    model2_name = f'1982-assafir-{year}'
+    model_names = [model1_name, model2_name]
 
-    # with open(os.path.join(path_nahar_vocab, 'An-Nahar_{}.pickle'.format(model_name)), 'rb') as handle:
-    #     vocab_embeddings_nahar = pickle.load(handle)
-    #
-    # with open(os.path.join(path_assafir_vocab, 'As-Safir_{}.pickle'.format(model_name)), 'rb') as handle:
-    #     vocab_embeddings_assafir = pickle.load(handle)
-
-    # with open("/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/An-Nahar/UBC-NLP-MARBERTv2/embeddings.pickle", "rb") as handle:
-    #     vocab_embeddings_nahar = pickle.load(handle)
-
-    # candidates = [k for k in vocab_embeddings_nahar if year in k]
-    #
-    # # Prepare embeddings
-    # embeddings_mod = []
-    # for c in candidates:
-    #     emb = vocab_embeddings_nahar[c]
-    #     if isinstance(emb, np.ndarray):  # Ensure it's a NumPy array
-    #         pass
-    #     else:
-    #         emb = np.array(emb)  # Convert to NumPy if needed
-    #     if emb.shape != (1, 768):  # Reshape to (1, 768) if necessary
-    #         emb = emb.reshape(1, -1)
-    #     embeddings_mod.append(emb)
-    #
-    # # Convert to NumPy array
-    # embeddings_mod = np.array(embeddings_mod)  # Shape will be (N, 1, 768)
-    # print("Embeddings shape:", embeddings_mod.shape)
-    #
-    # # Build the Annoy index
-    # f = embeddings_mod.shape[2]  # Dimensionality of embeddings (768)
-    # annoy_index = AnnoyIndex(f, 'angular')
-    #
-    # for i, emb in enumerate(embeddings_mod):
-    #     try:
-    #         annoy_index.add_item(i, emb.flatten())  # Flatten to 1D
-    #         print("Added embedding:", i)
-    #     except Exception as e:
-    #         print("Error adding embedding:", e)
-    #
-    # annoy_index.build(10)  # Build the index with 10 trees
-    #
-    # # Query for nearest neighbors
-    # query = get_time_specific_word_embedding(
-    #     word="الحكم",
-    #     year=year,
-    #     embeddings=embeddings_nahar,
-    #     tokenizer=tokenizer_nahar
-    # )
-    # query = query.flatten()  # Ensure query is 1D
-    # K = 100
-    # indices = annoy_index.get_nns_by_vector(query, K)
-    #
-    # # Output the nearest neighbors
-    # print(f"Top {K} nearest neighbors to 'الحكم':")
-    # for idx in indices:
-    #     print(candidates[idx])
-
-    # stopwords_list = stopwords.words('arabic') # stopwords for linear mapping approach
     stopwords_list = []
     count = 0
     with open('top10percent.txt', 'r', encoding='utf-8') as f:
@@ -1172,19 +1052,35 @@ if __name__ == '__main__':
                                  num_steps=num_steps,
                                  mat_name=mat_name)
 
-        for w in stopwords_list:
-            s = get_stability_linear_mapping_one_word(model1=model_nahar,
-                                 model2=model_assafir,
-                                 embeddings_1=embeddings_nahar,
-                                 embeddings_2=embeddings_assafir,
-                                 tokenizer_1=tokenizer_nahar,
-                                 tokenizer_2=tokenizer_assafir,
-                                 model1_name=model1_name,
-                                 model2_name=model2_name,
-                                 mat_name=mat_name,
-                                w=w)
+        # for w in stopwords_list:
+        #     s = get_stability_linear_mapping_one_word(model1=model_nahar,
+        #                          model2=model_assafir,
+        #                          embeddings_1=embeddings_nahar,
+        #                          embeddings_2=embeddings_assafir,
+        #                          tokenizer_1=tokenizer_nahar,
+        #                          tokenizer_2=tokenizer_assafir,
+        #                          model1_name=model1_name,
+        #                          model2_name=model2_name,
+        #                          mat_name=mat_name,
+        #                         w=w)
+        #
+        #     print(f'stability of {w} is: {s}')
 
-            print(f'stability of {w} is: {s}')
+    t1 = time.time()
+    # get_nearest_neighbors(word="فلسطين", year="06")
+    get_stability_combined(models=[model_nahar, model_assafir],
+                           embeddings=[embeddings_nahar, embeddings_assafir],
+                           tokenizers=[tokenizer_nahar, tokenizer_assafir],
+                           models_names=model_names, mat_name=mat_name, words=["فلسطين"],
+                           year=year,
+                           k=k,
+                           save_dir=save_dir_combined_neighbor,
+                           file_name='stabilities_combined')
+
+    t2 = time.time()
+
+    # print(f'Time taken to get nearest neighbors: {(t2-t1)/60} mins')
+    print(f'Time taken to get stability combined: {(t2 - t1) / 60} mins')
 
     #     get_stability_linear_mapping(model1=model_nahar,
     #                                  model2=model_assafir,
@@ -1197,7 +1093,7 @@ if __name__ == '__main__':
     #     # run the combined algorithm
     #     get_stability_combined(models=models, models_names=models_names, mat_name=mat_name, words_path=keywords_path,
     #                            k=k, save_dir=save_dir_combined_neighbor, file_name='stabilities_combined')
-    #
+
     # if method == "neighbor":
     #     get_stability_neighbors(models=models, words_path=keywords_path,
     #                             k=k, save_dir=save_dir_combined_neighbor, file_name='stabilities_neighbor')

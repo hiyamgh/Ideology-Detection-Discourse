@@ -1,16 +1,12 @@
-import pickle
-import os
 from itertools import cycle
 from bidi import algorithm as bidialg
 import arabic_reshaper
-from words_are_malleable4 import get_stability_combined_one_word
-import fasttext
+from words_are_malleable_contextualized import *
 from scipy.signal import find_peaks
 from scipy import stats
 from collections import Counter
 import numpy as np
 import matplotlib.pyplot as plt
-import csv
 
 ################### common parameters for all images ###################
 plt.rcParams['figure.dpi'] = 300
@@ -305,39 +301,33 @@ def get_ranks(stability_combined, stability_neighbors, stability_linear):
     return ranks_combined, ranks_neigh, ranks_lin
 
 
-def get_contrastive_viewpoint_summary(w, n, k, models, mat_name, dir_name_matrices,
-                                      viewpoints_names, summaryforsaving, thresh=0.5):
+def get_contrastive_viewpoint_summary(w, summary_length, k,
+                                      models,
+                                      embeddings,
+                                      tokenizers,
+                                      models_names,
+                                      mat_name,
+                                      year,
+                                      thresh=0.5):
     """ get a contrastive viewpoint summary of a word of length n. For a certain
         word:
         1. we get its top k nearest neighbors.
         2. Then for each nearest neighbor, we add it into the summary if its stability is equal to or less than a certain threshold.
     """
-    summary1, summary2, summary3 = [], [], []
+    summary1, summary2 = [], []
     all_summaries = []
 
-    nns1 = [n[1] for n in models[0].get_nearest_neighbors(w, k)]
-    nns2 = [n[1] for n in models[1].get_nearest_neighbors(w, k)]
-
-    if len(models) > 2:
-        nns3 = [n[1] for n in models[2].get_nearest_neighbors(w, k)]
-        count = 0
-        for nn in nns3:
-            if count == n:
-                break
-            st = get_stability_combined_one_word(w=nn, models=models, models_names=viewpoints_names, mat_name=mat_name,
-                                                 dir_name_matrices=dir_name_matrices, k=k)
-
-            if abs(st) <= thresh:
-                summary3.append((st, nn))
-                count += 1
+    nns1 = [n for n in get_nearest_neighbors(word=w, year=year, embeddings=embeddings[0], tokenizer=tokenizers[0], model=models[0])]
+    nns2 = [n for n in get_nearest_neighbors(word=w, year=year, embeddings=embeddings[1], tokenizer=tokenizers[1], model=models[1])]
 
     count = 0
     for nn in nns1:
-        if count == n:
+        if count == summary_length:
             break
 
-        st = get_stability_combined_one_word(w=nn, models=models, models_names=viewpoints_names, mat_name=mat_name,
-                                             dir_name_matrices=dir_name_matrices, k=k)
+        st = get_stability_combined_one_word(models, embeddings, tokenizers,
+                               models_names, mat_name, nn, year, k)
+
         if st <= thresh:
             summary1.append((st, nn))
             count += 1
@@ -345,44 +335,20 @@ def get_contrastive_viewpoint_summary(w, n, k, models, mat_name, dir_name_matric
 
     count = 0
     for nn in nns2:
-        if count == n:
+        if count == summary_length:
             break
 
-        st = get_stability_combined_one_word(w=nn, models=models, models_names=viewpoints_names, mat_name=mat_name,
-                                             dir_name_matrices=dir_name_matrices, k=k)
+        st = get_stability_combined_one_word(models, embeddings, tokenizers,
+                                             models_names, mat_name, nn, year, k)
 
-        if abs(st) <= thresh:
+        if st <= thresh:
             summary2.append((st, nn))
             count += 1
     all_summaries.append(summary2)
-    if len(models) > 2:
-        all_summaries.append(summary3)
 
-    # mkdir(save_dir)
-    if w not in summaryforsaving:
-        summaryforsaving[w] = {}
-    viewpoints_batch_name = '{}_{}'.format(viewpoints_names[0], viewpoints_names[1]) if len(
-        viewpoints_names) < 3 else '{}_{}_{}'.format(viewpoints_names[0], viewpoints_names[1], viewpoints_names[2])
-
-    if viewpoints_batch_name not in summaryforsaving[w]:
-        summaryforsaving[w][viewpoints_batch_name] = {}
-
-    # with open(os.path.join(save_dir, '{}_{}_summary.txt'.format(mapar2en[w], viewpoints_batch_name)), 'w', encoding='utf-8') as f:
-    #     for i in range(len(all_summaries)):
-    #         if viewpoints_names[i] not in summary2save[w][viewpoints_batch_name]:
-    #             summary2save[w][viewpoints_batch_name][viewpoints_names[i]] = []
-    #         f.write('summary of the word {} from the {} viewpoint:\n'.format(w, viewpoints_names[i]))
-    #         for s in all_summaries[i]:
-    #             f.write(s[1] + "\n")
-    #             summary2save[w][viewpoints_batch_name][viewpoints_names[i]].append(s[1])
-
-    for i in range(len(all_summaries)):
-        if viewpoints_names[i] not in summaryforsaving[w][viewpoints_batch_name]:
-            summaryforsaving[w][viewpoints_batch_name][viewpoints_names[i]] = []
-        for s in all_summaries[i]:
-            summaryforsaving[w][viewpoints_batch_name][viewpoints_names[i]].append(s[1])
-
-    return summaryforsaving
+    print(f'summary of {w} from Nahar point of view: {summary1}')
+    print(f'summary of {w} from AsSafir point of view: {summary2}')
+    return all_summaries
 
 
 def perform_paired_t_test(ranks_comb, ranks_neigh, ranks_lin, save_dir, file_name):
@@ -440,10 +406,11 @@ def read_keywords(file_path):
     return words
 
 
-def save_summary(summary2save, save_dir, thresh):
+def save_summary(summary2save, save_dir):
     mkdir(save_dir)
-    with open(os.path.join(save_dir, 'all_summaries_{}.pickle'.format(thresh)), 'wb') as handle:
+    with open(os.path.join(save_dir, 'all_summaries.pickle'), 'wb') as handle:
         pickle.dump(summary2save, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print(f'saved all_summaries dict into {save_dir}')
 
 
 def plot_stabilities_over_time_heatmap(words_batches, stabilities_over_time, mode, save_dir, batch_names, fig_name):
@@ -601,32 +568,42 @@ def plot_stabilities_over_time_lineplot(words_batches, stabilities_over_time, mo
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--models_path1',
-                        default='D:/fasttext_embeddings/ngrams4-size300-window5-mincount100-negative15-lr0.001/ngrams4-size300-window5-mincount100-negative15-lr0.001/',
-                        help='path to trained models files')
-    parser.add_argument('--models_path2',
-                        default='D:/fasttext_embeddings/ngrams4-size300-window5-mincount100-negative15-lr0.001/ngrams4-size300-window5-mincount100-negative15-lr0.001/',
-                        help='path to trained models files of viewpoint 2. If not None, then analysis will be synchronic, else, analysis will be diachronic')
-    parser.add_argument('--models_path3', default=None,
-                        help='path to trained models files of viewpoint 3. If not None, then analysis will be synchronic, else, analysis will be diachronic')
-    parser.add_argument('--keywords_path', default='from_DrFatima/sentiment_keywords.txt')
-    # parser.add_argument('--keywords_path', default='from_DrFatima/words_threshold.txt')
-    parser.add_argument("--mode", default="d-nahar",
-                        help="mode: \'d-archivename\' for diachronic, \'s\' for synchronic")
-    parser.add_argument("--threshold", default="0.1,0.2,0.3,0.4,0.5",
-                        help="threshold value(s) for generating contrastive viewpoint sumamries")
-    parser.add_argument("--k", default=100,
-                        help="number of nearest neighbors to consider when creating contrastive viewpoint summaries")
-    parser.add_argument("--cvs_len", default=10,
-                        help="length of the contrastive viewpoint summary")  # cvs ==> contrastive viewpoint summary
+    parser.add_argument("--model_name", default="UBC-NLP-MARBERT", help="model name for archives")
+
+    # neighbor and combined approach (words_file is needed by linear approach as well)
+    parser.add_argument("--k", default=100, help="number of nearest neighbors to consider per word - for neighbours and combined approach")
+    parser.add_argument("--save_dir", default="results_diachronic_new/", help="directory to save stabilities dictionary")
+    parser.add_argument("--threshold", default="0.3,0.4,0.5", help="threshold value(s) for generating contrastive viewpoint summaries")
+    parser.add_argument("--cvs_len", default=30, help="length of the contrastive viewpoint summary")  # cvs ==> contrastive viewpoint summary
     args = parser.parse_args()
 
-    path1 = args.models_path1
-    path2 = args.models_path2
-    path3 = args.models_path3
+    model_name = args.model_name
+    path_nahar = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/An-Nahar/{}/'.format(model_name)
+    path_assafir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/As-Safir/{}/'.format(model_name)
 
-    # for sentiment
-    sentiment_words = read_keywords(args.keywords_path)
+    path_to_model_nahar = "/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/{}/".format(model_name)
+    path_to_model_assafir = "/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/{}/".format(model_name)
+
+    # tokenizers for each archive
+    tokenizer_nahar = AutoTokenizer.from_pretrained(path_to_model_nahar)
+    tokenizer_assafir = AutoTokenizer.from_pretrained(path_to_model_assafir)
+
+    # models for each archive
+    model_nahar = AutoModelForMaskedLM.from_pretrained(path_to_model_nahar, output_hidden_states=True).cuda()
+    model_nahar.eval()
+
+    model_assafir = AutoModelForMaskedLM.from_pretrained(path_to_model_assafir, output_hidden_states=True).cuda()
+    model_assafir.eval()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    with open(os.path.join(path_nahar, 'embeddings.pickle'), 'rb') as handle:
+        embeddings_nahar = pickle.load(handle)
+        print(len(embeddings_nahar))
+
+    with open(os.path.join(path_assafir, 'embeddings.pickle'), 'rb') as handle:
+        embeddings_assafir = pickle.load(handle)
+        print(len(embeddings_assafir))
 
     # threshold value(s)
     thresh = args.threshold
@@ -636,170 +613,63 @@ if __name__ == '__main__':
     else:
         thresholds = [float(thresh)]
 
+    rootdir = "../generate_bert_embeddings/contrastive_summaries"
+    categories2words = {}
+    for file in os.listdir(rootdir):
+        category_name = file.replace(".txt", "")
+        categories2words[category_name] = []
+        with open(os.path.join(save_dir, file), "r") as f:
+            lines = f.readlines()
+            for line in lines:
+                w = line.strip().replace("\n", "")
+                categories2words[category_name].append(w)
+
     # number of nearest neighbors to include when creating contrastive viewpoint summaries
     knn = int(args.k)
     # length of the contrastive viewpoint summary
     cvs_len = int(args.cvs_len)
 
-    # absolute prefix of any path on the hpc cluster
-    # prefix = '/scratch/7613491_hkg02/political_discourse_mining_hiyam/semantic_shifts_modified/'
-
-    # key is mode, value is start and end years
-    dict_years = {
-        'd-nahar': {
-            'start': 1983,
-            'end': 2009,
-            'years': [[y - 1, y] for y in list(range(1983, 2010))],
-            'paths': ['stability_diachronic/nahar/nahar_{}_nahar_{}/'.format(y - 1, y) for y in
-                      list(range(1983, 2010))],
-            'viewpoints': [['nahar_{}'.format(y - 1), 'nahar_{}'.format(y)] for y in list(range(1983, 2010))],
-            'models': [['{}.bin'.format(y - 1), '{}.bin'.format(y)] for y in list(range(1983, 2010))],
-            'time_points': ['{}-{}'.format(y - 1, y) for y in list(range(1983, 2010))]
-        },
-        'd-assafir': {
-            'start': 1983,
-            'end': 2011,
-            'years': [[y - 1, y] for y in list(range(1983, 2012))],
-            'paths': ['stability_diachronic/assafir/assafir_{}_assafir_{}/'.format(y - 1, y) for y in
-                      list(range(1983, 2012))],
-            'viewpoints': [['assafir_{}'.format(y - 1), 'assafir_{}'.format(y)] for y in list(range(1983, 2012))],
-            'models': [['{}.bin'.format(y - 1), '{}.bin'.format(y)] for y in list(range(1983, 2012))],
-            'time_points': ['{}-{}'.format(y - 1, y) for y in list(range(1983, 2012))]
-        },
-        'd-hayat': {
-            'start': 1988,
-            'end': 2000,
-            'years': [[y - 1, y] for y in list(range(1989, 2001))],
-            'paths': ['stability_diachronic/hayat/hayat_{}_hayat_{}/'.format(y - 1, y) for y in
-                      list(range(1989, 2001))],
-            'viewpoints': [['hayat_{}'.format(y - 1), 'hayat_{}'.format(y)] for y in list(range(1989, 2001))],
-            'models': [['{}.bin'.format(y - 1), '{}.bin'.format(y)] for y in list(range(1989, 2001))],
-            'time_points': ['{}-{}'.format(y - 1, y) for y in list(range(1989, 2001))]
-        },
-        's': {
-            'start': 1988,
-            'end': 2000,
-            'years': [[y, y, y] for y in list(range(1988, 2001))],
-            'paths': ['stability_synchronic/nahar_{}_assafir_{}_hayat_{}/'.format(y, y, y) for y in
-                      list(range(1988, 2001))],
-            'viewpoints': [['nahar_{}'.format(y), 'assafir_{}'.format(y), 'hayat_{}'.format(y)] for y in
-                           list(range(1988, 2001))],
-            'models': [['{}.bin'.format(y), '{}.bin'.format(y), '{}.bin'.format(y)] for y in list(range(1988, 2001))],
-            'time_points': ['{}'.format(y) for y in list(range(1988, 2001))]
-        }
-    }
-
     mode = args.mode
-    paths = dict_years[mode]['paths']
+
     stabilities_over_time = {}
     results_dir = 'evaluate_stability/{}/'.format(mode)
 
-    # a dictionary mapping word in Arabic to a 'temporary name' in English
-    # to make it easier to save plots and retrieve them
-    # later on in latex (for reporting)
-    mapar2en = {
-        'الولايات المتحدة الامريكية': 'UnitedStatesofAmerica',
-        'امريكا': 'America',
-        'اسرائيل': 'Israel',
-        'فلسطيني': 'Palestinian',
-        'حزب الله': 'Hezbollah',
-        'المقاومه': 'Resistance',
-        'سوري': 'Syrian',
-        'منظمه التحرير الفلسطينيه': 'PalestinianLiberationOrganization',
-        'ايران': 'Iran',
-        'السعوديه': 'Saudiya'
-    }
-
-    # summary2save = {}
     summaries2save = {}
-    for i, path in enumerate(paths):
-        if os.path.exists(path):
-            dict_combined = os.path.join(path + 'k100/', 'stabilities_combined.pkl')
-            print('path: {}'.format(path))
 
-            models2load = dict_years[mode]['models'][i]
-            viewpoints = dict_years[mode]['viewpoints'][i]
-            years2load = dict_years[mode]['years'][i]
-            time_point = dict_years[mode]['time_points'][i]
+    for t in thresholds:
 
-            stabilities_over_time[time_point] = {}
+        if t not in summaries2save:
+            summaries2save[t] = {}
 
-            if os.path.exists(dict_combined):
-                with open(dict_combined, 'rb') as handle:  # load pickle file of stability dictionary
-                    stabilities_comb = pickle.load(handle)
-                    print('loaded the stability dictionary for time point {} in mode: {}'.format(time_point, mode))
+        for year in ['06', '07', '08', '09', '10', '11', '12']:
+            if year not in summaries2save[t]:
+                summaries2save[t][year] = {}
 
-            stabilities_over_time[
-                time_point] = stabilities_comb  # store the stability values for a particular time point
+            for category in categories2words:
 
-            print(time_point)
-            for w in sentiment_words:
-                print('{}: {}'.format(w, stabilities_comb[w]))
+                if category not in summaries2save[t][year]:
+                    summaries2save[t][year][category] = {}
 
-            '''
-            Assafir
-            total average stability (across all words; across all time points): 0.1346011641356865
-            max stability attained (across all words; across all time points): 0.36011528459299535
-            min stability attained (across all words; across all time points): -0.06546064090325365
+                for w in categories2words[category]:
 
-            Nahar
-            total average stability (across all words; across all time points): 0.13681961021238465
-            max stability attained (across all words; across all time points): 0.39699742021961487
-            min stability attained (across all words; across all time points): -0.09811928204189617
-
-            Hayat
-            total average stability (across all words; across all time points): 0.12923996344247993
-            max stability attained (across all words; across all time points): 0.32959239517878974
-            min stability attained (across all words; across all time points): -0.030361458580578475
-            '''
-
-            models = []  # to store loaded models inside an array to pass to the get_summaries method
-            model1 = fasttext.load_model(os.path.join(path1, '{}'.format(models2load[0])))
-            model2 = fasttext.load_model(os.path.join(path2, '{}'.format(models2load[1])))
-
-            models.append(model1)
-            models.append(model2)
-            if len(models2load) > 2:
-                model3 = fasttext.load_model(os.path.join(path3, '{}'.format(models2load[2])))
-                models.append(model3)
-
-            dir_name_matrices = '{}/linear_numsteps80000/matrices/'.format(path)
-
-            # for z, w in enumerate(sentiment_words):
-            #     print('---- word: {} - timepoint: {} ----'.format(w, time_point))
-            for t in thresholds:
-                if t not in summaries2save:
-                    summaries2save[t] = {}
-                for z, w in enumerate(sentiment_words):
-                    print('---- word: {} - timepoint: {} ----'.format(w, time_point))
+                    print('---- word: {} - timepoint: {} ----'.format(w, year))
                     print('threshold: {}'.format(t))
-                    # previous value of threshold was 0.4 (the max stability of all words over all time points)
-                    # get old summary
-                    summary2save_old = summaries2save[t]
 
                     # update summary
-                    summary2save = get_contrastive_viewpoint_summary(w, n=cvs_len, k=knn, models=models,
-                                                                     mat_name='trans',
-                                                                     dir_name_matrices=dir_name_matrices,
-                                                                     viewpoints_names=viewpoints,
-                                                                     summaryforsaving=summary2save_old, thresh=t)
+                    summaries = get_contrastive_viewpoint_summary(w,
+                                                                     summary_length=cvs_len,
+                                                                     k=k,
+                                                                     models=[model_nahar, model_assafir],
+                                                                     embeddings=[embeddings_nahar, embeddings_assafir],
+                                                                     tokenizers=[tokenizer_nahar, tokenizer_assafir],
+                                                                     models_names=[model1_name, model2_name],
+                                                                     mat_name=mat_name,
+                                                                     year=year,
+                                                                     thresh=t)
                     # save updated summary
-                    summaries2save[t] = summary2save
+                    summaries2save[t][year][category][w] = summaries
 
                     # will save that dictionary every time its updated so that we always keep the latest version
                     # save the dictionary of summaries as a pickle file for later loading
-                    save_summary(summary2save=summaries2save[t], save_dir=results_dir, thresh=t)
-
-    # words_batch1 = ['فلسطيني', 'منظمه التحرير الفلسطينيه']
-    # words_batch2 = ['السعوديه', 'الولايات المتحده الاميركيه', 'اميركا']
-    # words_batch3 = ['اسرائيل']
-    # words_batch4 = ['حزب الله', 'المقاومه', 'سوري',  'ايران']
-    #
-    # words_batches = [words_batch1, words_batch2, words_batch3, words_batch4] # list of batches
-    # batch_names = ['palestine_related', 'america_related', 'israel_related', 'syrian_related'] # list of names for each batch
-    #
-    # plot_stabilities_over_time_lineplot(words_batches, stabilities_over_time, mode, results_dir + 'stability_plots/', batch_names=batch_names, fig_name='stability_line')
-    # plot_stabilities_over_time_heatmap(words_batches, stabilities_over_time, mode, results_dir + 'stability_plots/', batch_names=batch_names, fig_name='stability_heat')
-    # get_stability_statistics_over_time(words_batches, stabilities_over_time, results_dir) # run this experiment before getting the summaries as they will help know the threshold
-
+                    save_summary(summary2save=summaries2save, save_dir=results_dir)
 
