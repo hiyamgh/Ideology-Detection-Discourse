@@ -9,6 +9,7 @@ import argparse
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from normalization import ArabicNormalizer
 from datetime import date
+from scipy.stats import wasserstein_distance
 
 
 def mkdir(direc):
@@ -80,6 +81,53 @@ def plot_embedding_bias_over_time(biases, years, ylabel, event_name, distance_ty
 
     mkdir(save_dir)
     fig_name = '{}_{}_{}'.format(event_name, model_name, distance_type)
+    plt.savefig(os.path.join(save_dir, fig_name + '.png'), dpi=300)
+    plt.close()
+
+
+def plot_embedding_bias_over_time_barplots(biases, years, ylabel, event_name, distance_type, save_dir):
+    # Step 1: Create a unified list of years
+    unified_years = sorted(set(years[0]).union(set(years[1])))
+
+    # Step 2: Define bar width and offsets
+    num_archives = len(biases)
+    bar_width = 0.4  # Width of each bar
+    x_indices = np.arange(len(unified_years))  # x positions for the years
+    offsets = np.linspace(-bar_width * (num_archives - 1) / 2, bar_width * (num_archives - 1) / 2, num_archives)
+
+    plt.figure(figsize=(12, 6))
+
+    # Step 3: Plot bars for each archive
+    for idx, (archive_name, archive_biases) in enumerate(biases.items()):
+        aligned_biases = []
+        archive_years = years[0] if archive_name == "An-Nahar" else years[1]
+        year_to_bias = dict(zip(archive_years, archive_biases))
+
+        for year in unified_years:
+            aligned_biases.append(year_to_bias.get(year, None))  # None if year is missing
+
+        # Filter out None values for plotting
+        valid_indices = [i for i, b in enumerate(aligned_biases) if b is not None]
+        valid_biases = [aligned_biases[i] for i in valid_indices]
+
+        # Plot bars with offsets for grouping
+        plt.bar(
+            x_indices[valid_indices] + offsets[idx],
+            valid_biases,
+            width=bar_width,
+            label=f"EB for {archive_name}",
+        )
+
+    # Step 4: Add horizontal line, labels, and legend
+    plt.hlines(y=0, xmin=-0.5, xmax=len(unified_years) - 0.5, colors='black', linestyles='--', lw=2, label='EB=0')
+    plt.xticks(x_indices, [str(year) for year in unified_years], rotation=45)
+    plt.ylabel(ylabel)
+    plt.grid(axis='y')
+    plt.legend()
+
+    # Step 5: Save the plot
+    mkdir(save_dir)
+    fig_name = '{}_{}_{}_barplots'.format(event_name, model_name, distance_type)  # Replace "model_name" with actual variable
     plt.savefig(os.path.join(save_dir, fig_name + '.png'), dpi=300)
     plt.close()
 
@@ -408,6 +456,14 @@ if __name__ == '__main__':
         # for event_name in entities_target_neutral_lists:
 
         plot_embedding_bias_over_time(biases=biases,
+                                      years=[months_weeknbs_nahar, months_weeknbs_assafir],
+                                      ylabel=f"Avg. Embedding Bias for {event_name}",
+                                      event_name=event_name,
+                                      distance_type=dist_type,
+                                      save_dir="plots/"
+                                      )
+
+        plot_embedding_bias_over_time_barplots(biases=biases,
                                       years=[months_weeknbs_nahar, months_weeknbs_assafir],
                                       ylabel=f"Avg. Embedding Bias for {event_name}",
                                       event_name=event_name,

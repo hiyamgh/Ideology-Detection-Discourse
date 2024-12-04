@@ -1,5 +1,5 @@
 import numpy as np
-
+from scipy.stats import wasserstein_distance
 
 def cossim(v1, v2, signed = True):
     '''
@@ -22,8 +22,10 @@ def quantile_function(df, lower, upper, col = 'value'):
 def calc_distance_between_vectors(vec1, vec2, distype = 'norm'):
     if distype is 'norm':
         return - np.linalg.norm(np.subtract(vec1, vec2))
-    else:
+    elif distype is 'cossim':
         return cossim(vec1, vec2)
+    else:
+        return wasserstein_distance(vec1, vec2)
 
 
 def calc_distance_between_words(vectors, word1, word2, distype = 'norm'):
