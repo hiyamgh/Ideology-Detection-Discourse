@@ -1,0 +1,9 @@
+--model_name aubmindlab-bert-base-arabertv2
+--model_name aubmindlab-bert-base-arabertv01
+--model_name aubmindlab-bert-base-arabert
+--model_name aubmindlab-bert-base-arabertv02
+--model_name aubmindlab-bert-base-arabertv02-twitter
+--model_name UBC-NLP-ARBERT
+--model_name UBC-NLP-MARBERT
+--model_name qarib-bert-base-qarib
+--model_name UBC-NLP-MARBERTv2

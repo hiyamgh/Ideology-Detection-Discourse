@@ -5,17 +5,19 @@ import pickle
 import argparse
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import time
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from normalization import ArabicNormalizer
 from annoy import AnnoyIndex
 from scipy.linalg import orthogonal_procrustes
+from datetime import date
+from tqdm import tqdm
 
 
 def get_word_embedding_static(word, tokenizer, model):
     """ Get static word embedding for a single word """
     tokenized = tokenizer(word, return_tensors="pt", add_special_tokens=True)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Tokenized input
     input_ids = tokenized["input_ids"].to(device)  # Token IDs
@@ -179,7 +181,7 @@ def get_cosine_sim(v1, v2):
     return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
 
-def load_linear_mapping_matrices(dir_name, mat_name, model1_name, model2_name):
+def load_linear_mapping_matrices(dir_name, model1_name, model2_name):
     """
     load the linear transformation matrices between one embedding and another
     :param dir_name: name of the directory where the matrices are stored
@@ -187,8 +189,8 @@ def load_linear_mapping_matrices(dir_name, mat_name, model1_name, model2_name):
                     inverse transformation matrix has an extra substring '_inv')
     :return the transformation matrix R and its inverse R_inv
     """
-    R = np.load(os.path.join(dir_name, mat_name + '_{}_{}.npy').format(model1_name, model2_name))
-    R_inv = np.load(os.path.join(dir_name, mat_name + '_{}_{}_inv.npy'.format(model1_name, model2_name)))
+    R = np.load(os.path.join(dir_name, '{}_{}.npy').format(model1_name, model2_name))
+    R_inv = np.load(os.path.join(dir_name, '{}_{}_inv.npy'.format(model1_name, model2_name)))
     return R, R_inv
 
 
@@ -259,7 +261,7 @@ def compute_stability(V_i_w, V_j_w, W_i_j, W_j_i):
     return stability
 
 
-def learn_stability_matrices(model1, model2, embeddings_1, embeddings_2, tokenizer_1, tokenizer_2, model1_name, model2_name, subwords, num_steps, mat_name):
+def learn_stability_matrices(model1, model2, embeddings_1, embeddings_2, tokenizer_1, tokenizer_2, model1_name, model2_name, subwords, save_dir):
     """
     Get the stability by applying a transformation matrix that maps word w in embedding space 1
     to word w in embedding space 2. Transformation matrix is learned through gradient descent optimization
@@ -293,11 +295,11 @@ def learn_stability_matrices(model1, model2, embeddings_1, embeddings_2, tokeniz
 
     def save_matrices(R, R_inv):
         # save transformation matrix and its inverse
-        np.save(os.path.join(dir_name_matrices, mat_name + '_{}_{}.npy'.format(model1_name, model2_name)), R)
-        np.save(os.path.join(dir_name_matrices, mat_name + '_{}_{}_inv.npy'.format(model1_name, model2_name)), R_inv)
+        np.save(os.path.join(save_dir, '{}_{}.npy'.format(model1_name, model2_name)), R)
+        np.save(os.path.join(save_dir, '{}_{}_inv.npy'.format(model1_name, model2_name)), R_inv)
 
-    if os.path.exists(os.path.join(dir_name_matrices, mat_name + '_{}_{}.npy'.format(model1_name, model2_name))):
-        print('matrices found in {}'.format(os.path.join(dir_name_matrices, mat_name + '_{}_{}.npy'.format(model1_name, model2_name))))
+    if os.path.exists(os.path.join(save_dir, '{}_{}.npy'.format(model1_name, model2_name))):
+        print('matrices found in {}'.format(os.path.join(save_dir, '{}_{}.npy'.format(model1_name, model2_name))))
         return
 
     print('Calculating stability values (linear)')
@@ -354,7 +356,9 @@ def get_stability_combined_one_word(models,
                            embeddings,
                            tokenizers,
                            models_names,
-                           mat_name,
+                           annoy_indexes,
+                           vocab_names,
+                           dir_name_matrices,
                            word,
                            year,
                            k=50):
@@ -364,9 +368,9 @@ def get_stability_combined_one_word(models,
         for j in range(len(models)):
             if i != j:
                 nnsims1 = get_nearest_neighbors(word=word, year=year, embeddings=embeddings[i], tokenizer=tokenizers[i],
-                                                model=models[i])
+                                                model=models[i], annoy_index=annoy_indexes[i], vocab_names=vocab_names[i], K=k)
                 nnsims2 = get_nearest_neighbors(word=word, year=year, embeddings=embeddings[j], tokenizer=tokenizers[j],
-                                                model=models[j])
+                                                model=models[j], annoy_index=annoy_indexes[j], vocab_names=vocab_names[j], K=k)
 
                 # nn1 = [n[1] for n in nnsims1]  # get only the neighbour, not the similarity
                 # nn2 = [n[1] for n in nnsims2]  # get only the neighbour, not the similarity
@@ -408,7 +412,7 @@ def get_stability_combined_one_word(models,
                 # if there are some words that are found in one list but not in the other
                 # then calculate their stability using linear mapping approach
                 if not_found1 != [] or not_found2 != []:
-                    R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name,
+                    R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices,
                                                             model1_name=models_names[0],
                                                             model2_name=models_names[1])
 
@@ -507,252 +511,10 @@ def get_stability_combined_one_word(models,
     return st
 
 
-def get_stability_combined(models,
-                           embeddings,
-                           tokenizers,
-                           models_names,
-                           mat_name,
-                           words,
-                           year,
-                           k=50, save_dir='results/',
-                           file_name='stabilities_combined'):
-    print('Calculating stability values (combined) - k={}'.format(k))
-
-    vocab = words
-    print('len of vocab: {}'.format(len(vocab)))
-    stabilities = {}
-    for w in vocab:
-        similarities = []
-        for i in range(len(models)):
-            for j in range(len(models)):
-                if i != j:
-                    nnsims1 = get_nearest_neighbors(word=w, year=year, embeddings=embeddings[i], tokenizer=tokenizers[i], model=models[i])
-                    nnsims2 = get_nearest_neighbors(word=w, year=year, embeddings=embeddings[j], tokenizer=tokenizers[j], model=models[j])
-
-                    # nn1 = [n[1] for n in nnsims1]  # get only the neighbour, not the similarity
-                    # nn2 = [n[1] for n in nnsims2]  # get only the neighbour, not the similarity
-                    nn1 = nnsims1
-                    nn2 = nnsims2
-
-                    inter = set.intersection(*map(set, [nn1, nn2]))
-
-                    ranks1, ranks2 = {}, {}  # for storing indices
-                    not_found1, not_found2 = [], []  # for storing words that are found in one list, but not in the other
-
-                    # loop over neighbors of w in embedding space 1, check if they're in the neighbors of w in embedding space 2
-                    # calculate their rank, if yes.
-                    for wp in nn1:
-                        if wp in nn2:
-                            ranks1[wp] = nn2.index(wp)  # index of wp in nn2
-                        else:
-                            # if not present, it has no index
-                            not_found1.append(wp)
-
-                    # loop over neighbors of w in embedding space 2, check if they're in the neighbors of w in embedding space 1
-                    # calculate their rank, if yes.
-                    for wp in nn2:
-                        if wp in nn1:
-                            ranks2[wp] = nn1.index(wp)  # index of wp in nn1
-                        else:
-                            # if not present, it has no index
-                            not_found2.append(wp)
-
-                    sum_ranks1, sum_ranks2 = 0.0, 0.0
-                    for wp in ranks1:
-                        sum_ranks1 += ranks1[wp]
-                    for wp in ranks2:
-                        sum_ranks2 += ranks2[wp]
-
-                    Count_neig12 = (len(nn1) * len(inter)) - sum_ranks1
-                    Count_neig21 = (len(nn2) * len(inter)) - sum_ranks2
-
-                    # if there are some words that are found in one list but not in the other
-                    # then calculate their stability using linear mapping approach
-                    if not_found1 != [] or not_found2 != []:
-                        R, R_inv = load_linear_mapping_matrices(dir_name=dir_name_matrices, mat_name=mat_name,
-                                                                model1_name=models_names[0],
-                                                                model2_name=models_names[1])
-
-                        sim_lin01, sim_lin10 = 0.0, 0.0
-                        for wp in not_found1:
-                            # w_v = models[j].get_word_vector(w) if ' ' not in w else models[j].get_sentence_vector(w)
-                            # wp_v = models[i].get_word_vector(wp) if ' ' not in wp else models[i].get_sentence_vector(wp)
-
-                            w_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[j], tokenizer=tokenizers[j], model=models[j])
-                            wp_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[i], tokenizer=tokenizers[i], model=models[i])
-
-                            w_v = w_v.flatten()
-                            w_v.reshape(768, )
-
-                            wp_v = wp_v.flatten()
-                            wp_v.reshape(768, )
-
-                            try:
-                                R = R.cpu().numpy()
-                            except:
-                                pass
-
-                            try:
-                                val = get_cosine_sim(R.dot(wp_v), w_v)
-                            except:
-                                val = get_cosine_sim(R.dot(wp_v.cpu().numpy()), w_v)
-                            sim_lin01 += val
-                            # print('{} - {} - {}'.format(w, wp, val))
-
-                        sim_lin01 /= len(not_found1)
-
-                        for wp in not_found2:
-                            # w_v = models[i].get_word_vector(w) if ' ' not in w else models[i].get_sentence_vector(w)
-                            # wp_v = models[j].get_word_vector(wp) if ' ' not in wp else models[j].get_sentence_vector(wp)
-
-                            w_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[i],
-                                                                   tokenizer=tokenizers[i], model=models[i])
-                            wp_v = get_time_specific_word_embedding(word=wp, year=year, embeddings=embeddings[j],
-                                                                    tokenizer=tokenizers[j], model=models[j])
-
-                            w_v = w_v.flatten()
-                            w_v.reshape(768, )
-
-                            wp_v = wp_v.flatten()
-                            wp_v.reshape(768, )
-
-                            try:
-                                R_inv = R_inv.cpu().numpy()
-                            except:
-                                pass
-
-                            try:
-                                val = get_cosine_sim(R_inv.dot(wp_v), w_v)
-                            except:
-                                val = get_cosine_sim(R_inv.dot(wp_v.cpu().numpy()), w_v)
-                            sim_lin10 += val
-                            # print('{} - {} - {}'.format(w, wp, val))
-                        sim_lin10 /= len(not_found2)
-
-                    st_neig = (Count_neig12 + Count_neig21) / (2 * sum([i for i in range(1, k + 1)]))  # this is 2 * (k)(k+1) where k is the number of nearest neighbors
-                    st_lin = None
-                    if not_found1 != [] or not_found2 != []:
-                        st_lin = np.mean([sim_lin01, sim_lin10])
-
-                    # calculate value of lambda
-                    if nn1 == nn2:
-                        # when the nearest neighbours of w are exactly the same,
-                        # and have the same order in embedding 1 and embedding 2
-                        # lmbda = 1.0
-                        st = st_neig
-                        print('{}-{}: {}: st_neigh: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], w, st_neig, '-', st))
-                    elif Count_neig12 == 0 and Count_neig12 == 0:
-                        # when the nearest neighbours in embedding 1 are completely
-                        # not found in embedding 2, and vice versa would be also true
-                        # lmbda = 0
-                        st = st_lin
-                        print('{}-{}: {}: st_neigh: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], w,  '-', st_lin, st))
-                    else:
-                        # some neighbours of w in embedding 1 are found in embedding 2,
-                        # and vice versa would be true
-                        lmbda = 0.5
-                        st = (lmbda * st_neig) + ((1 - lmbda) * st_lin)
-                        print('{}-{}: {}: st_nei: {}, st_lin: {}, st: {}'.format(models_names[i], models_names[j], w,  st_neig, st_lin, st))
-
-                    similarities.append(st)
-
-        stabilities[w] = np.mean(similarities)
-        print('final combined stability of: {} = {}'.format(w, np.mean(similarities)))
-
-    # save the stabilities dictionary
-    mkdir(save_dir)
-    with open(os.path.join(save_dir, '{}.pkl'.format(file_name)), 'wb') as handle:
-        pickle.dump(stabilities, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    return stabilities
-
-
-def get_stability_neighbors(models, words_path=None, k=50, save_dir='results/', file_name='stabilities_neighbors'):
-    """
-    Method that applies Algorithm 1 (Neighbors method) of Words are Malleable paper by Azarbonyad et al (2017)
-    However, we have modified the code from the one presented in the paper in few places
-    because of the fact that we can get vectors of words that are OOV (out-of-vocabulary),
-    therefore, no need for getting the words in the intersection of two embedding spaces as
-    most of the words we were interested in are in fact OOV due to spelling errors
-    caused by applying OCR to digitized historical documents.
-
-    Also, the code is formatted to work with t=1, i.e., we are only using direct neighbors of words (t=1)
-    and not neighbors of neighbors (t >= 1). Therefore, we removed MinMax normalization step
-
-    :param model1: fasttext model representing embedding space 1
-    :param model2: fasttext model representing embedding space 1
-    :param k: number of nearest neighbors to extract per word
-    :param t: number of iterations
-    :param save_dir: directory to save final stabilities per word (saved as a python dictionary)
-    :param file_name: name of the final stabilities file (saved as a python dictionary)
-    :return:
-    """
-
-    print('Calculating stability values (neighbors) - k={}'.format(k))
-    if words_path is None:
-        all_vocab = []
-        all_vocab.append(model1.words)
-        all_vocab.append(model2.words)
-        vocab = list(set.intersection(*map(set, all_vocab)))
-        print('len of vocab: {}'.format(len(vocab)))
-    else:
-        with open(words_path, 'r', encoding='utf-8') as f:
-            words = f.readlines()
-        words = [w[:-1] for w in words if '\n' in w] # remove '\n'
-        words = [w for w in words if w.strip() != '']
-        vocab = [w for w in words]
-        print('len of vocab: {}'.format(len(vocab)))
-
-    # dictionary mapping each word w to its stability value. Before any processing, stability of any word w is 1.0
-    stabilities = {}
-
-    for w in vocab:
-        similarities = []
-        for i in range(len(models)):
-            for j in range(len(models)):
-                if i != j:
-                    nnsims1 = models[i].get_nearest_neighbors(w, k)
-                    nnsims2 = models[j].get_nearest_neighbors(w, k)
-
-                    nn1 = [n[1] for n in nnsims1]  # get only the neighbor, not the similarity
-                    nn2 = [n[1] for n in nnsims2]  # get only the neighbor, not the similarity
-
-                    sim1, sim2 = 0, 0
-                    for wp in nn2:
-                        w_v = models[i].get_word_vector(w) if ' ' not in w else models[i].get_sentence_vector(w)
-                        wp_v = models[i].get_word_vector(wp) if ' ' not in wp else models[i].get_sentence_vector(wp)
-
-                        sim2 += get_cosine_sim(w_v, wp_v)
-
-                    sim2 /= len(nn2)
-
-                    for wp in nn1:
-                        w_v = models[j].get_word_vector(w) if ' ' not in w else models[j].get_sentence_vector(w)
-                        wp_v = models[j].get_word_vector(wp) if ' ' not in wp else models[j].get_sentence_vector(wp)
-
-                        sim1 += get_cosine_sim(w_v, wp_v)
-
-                    sim1 /= len(nn1)
-
-                    # calculate stability as the average of both similarities
-                    similarities.append(sim1)
-                    similarities.append(sim2)
-
-        # calculate the word's stability
-        st = np.mean(similarities)
-        stabilities[w] = st
-        print('Neighbor\'s approach stability: {}: {}'.format(w, st))
-
-    # save the stabilities dictionary
-    mkdir(save_dir)
-    with open(os.path.join(save_dir, '{}.pkl'.format(file_name)), 'wb') as handle:
-        pickle.dump(stabilities, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    return stabilities
-
-
 def get_word_embedding_static(word, tokenizer, model):
     tokenized = tokenizer(word, return_tensors="pt", add_special_tokens=True)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Tokenized input
     input_ids = tokenized["input_ids"].to(device)  # Token IDs
@@ -883,14 +645,19 @@ def get_time_specific_word_embedding(word, year, embeddings, tokenizer, model):
         return embedding
 
 
-def get_nearest_neighbors(word, year, embeddings, tokenizer, model):
-    vocab_path = "vocabulary_embeddings/An-Nahar/UBC-NLP-MARBERTv2/"
+def load_vocab_embeddings(year, vocab_path):
+    """
+    year: the year which will be used to get time-specific embeddings
+    vocab_path: the path to the dictionary mapping each word in the vocabulary (of a fine tuned model) to its embedding
+    """
     big_dict = {}
     for file in os.listdir(vocab_path):
         with open(os.path.join(vocab_path, file), 'rb') as f:
             loaded_dict = pickle.load(f)
             for k, v in loaded_dict.items():
                 if year not in k:
+                    continue
+                if "##" in k:
                     continue
                 else:
                     big_dict[k] = v
@@ -916,7 +683,6 @@ def get_nearest_neighbors(word, year, embeddings, tokenizer, model):
     # Build the Annoy index
     f = embeddings_mod.shape[2]  # Dimensionality of embeddings (768)
     annoy_index = AnnoyIndex(f, 'angular')
-
     for i, emb in enumerate(embeddings_mod):
         try:
             annoy_index.add_item(i, emb.flatten())  # Flatten to 1D
@@ -924,7 +690,12 @@ def get_nearest_neighbors(word, year, embeddings, tokenizer, model):
         except Exception as e:
             print("Error adding embedding:", e)
 
-    annoy_index.build(10)  # Build the index with 10 trees
+    annoy_index.build(20)  # Build the index with 10 trees
+
+    return annoy_index, vocab_names
+
+
+def get_nearest_neighbors(word, year, embeddings, tokenizer, model, annoy_index, vocab_names, K):
 
     # Query for nearest neighbors
     query = get_time_specific_word_embedding(
@@ -935,7 +706,6 @@ def get_nearest_neighbors(word, year, embeddings, tokenizer, model):
         model=model
     )
     query = query.flatten()  # Ensure query is 1D
-    K = 100
     indices = annoy_index.get_nns_by_vector(query, K)
 
     nearest_neighbors = []
@@ -948,30 +718,49 @@ def get_nearest_neighbors(word, year, embeddings, tokenizer, model):
     return nearest_neighbors
 
 
+def get_week_coverage_sorted(archive):
+    """
+    loops over the .txt files and returns a sorted list of months-weeknbs
+    """
+    months_weeks = set()
+    root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/{}/'.format(archive)
+    for file in os.listdir(root_dir):
+        month = file[2:4]
+        day = file[4:6]
+        year = "1982"
+        print(f'processing file {file} with year: {year}, month: {month}, day: {day}')
+        given_date = date(int(year), int(month), int(day))
+        week_number = given_date.isocalendar()[1]
+
+        month_week = f"{month}_{str(week_number)}"
+
+        months_weeks.add(month_week)
+
+    months_weeks_l = list(months_weeks)
+    months_weeks_ls = sorted(months_weeks_l, key=lambda x: (int(x.split('_')[0]), int(x.split('_')[1])))
+    print(f"months_weeks sorted for {archive}: {months_weeks_ls}")
+
+    return months_weeks_ls
+
+
 if __name__ == '__main__':
     print('hello')
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--model_name", default="UBC-NLP-MARBERT", help="model name for archives")
-
-    # neighbor and combined approach (words_file is needed by linear approach as well)
+    parser.add_argument("--model_name", default="UBC-NLP-MARBERTv2", help="model name for archives")
+    parser.add_argument("--split_by", type=str, default="monthly", help="either `monthly` or `weekly`")
     parser.add_argument("--k", default=100, help="number of nearest neighbors to consider per word - for neighbours and combined approach")
-    parser.add_argument("--save_dir", default="results_diachronic_new/", help="directory to save stabilities dictionary")
-
-    # linear approach
-    parser.add_argument("--num_steps", default=80000, help="number of training steps for gradient descent optimization")
-    parser.add_argument("--mat_name", default="trans", help="prefix of the name of the transformation matrices to be saved - linear mapping approach")
-
-    parser.add_argument("--month_name", default="06", help="the month to which we should aligh Nahar_month to Assafir_month")
-
-    # name of the method to be used ('combined' vs. 'linear' vs. neighbor)
     parser.add_argument("--method", default="combined", help="method to calculate stability - either combined/neighbors/linear")
     args = parser.parse_args()
 
+    split_by = args.split_by
     model_name = args.model_name
-    path_nahar = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/An-Nahar/{}/'.format(model_name)
-    path_assafir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/As-Safir/{}/'.format(model_name)
 
+    # the time-specific embedidngs
+    path_nahar = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/An-Nahar/{}/{}/'.format(model_name, split_by)
+    path_assafir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/embeddings/As-Safir/{}/{}/'.format(model_name, split_by)
+
+    # the trained model
     path_to_model_nahar = "/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/{}/".format(model_name)
     path_to_model_assafir = "/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/{}/".format(model_name)
 
@@ -999,101 +788,44 @@ if __name__ == '__main__':
     k = int(args.k)
     save_dir = args.save_dir
 
-    # Example texts
-    year = args.month_name
-    word = "الحكم"
+    if split_by == 'weekly':
+        years_nahar = get_week_coverage_sorted(archive="An-Nahar")
+        years_assafir = get_week_coverage_sorted(archive="As-Safir")
+        combined_years = set(years_nahar).intersection(set(years_assafir))
+    else:
+        combined_years = ['06', '07', '08', '09', '10', '11', '12']
 
-    model1_name = f'1982-nahar-{year}'
-    model2_name = f'1982-assafir-{year}'
-    model_names = [model1_name, model2_name]
+    for year in tqdm(combined_years):
 
-    stopwords_list = []
-    count = 0
-    with open('top10percent.txt', 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-        for i in range(3016):
-            if "X" not in lines[i]:
-                print(lines[i].replace("\n", ""))
-                stopwords_list.append(lines[i].replace("\n", ""))
-                count += 1
-    print(count)
-    stopwords_list = list(set(stopwords_list))
-    print(len(stopwords_list))
+        model1_name = f'1982-nahar-{year}'
+        model2_name = f'1982-assafir-{year}'
+        model_names = [model1_name, model2_name]
 
-    num_steps = args.num_steps # number of training steps for gradient descent
-    mat_name = args.mat_name  # prefix for the matrix name of the transformation matrix for saving purposes
+        stopwords_list = []
+        count = 0
+        with open('top10percent.txt', 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            for i in range(3016):
+                if "X" not in lines[i]:
+                    print(lines[i].replace("\n", ""))
+                    stopwords_list.append(lines[i].replace("\n", ""))
+                    count += 1
+        print(count)
+        stopwords_list = list(set(stopwords_list))
+        print(len(stopwords_list))
 
-    save_dir_combined_neighbor = os.path.join(save_dir, '{}-{}_{}-{}/k{}/'.format(model1_name, year, model2_name, year, k))  # to save stability dictionaries of combined and neighbors approach
-    save_dir_linear = os.path.join(save_dir, "{}-{}_{}-{}/linear_numsteps{}/".format(model1_name, year, model2_name, year, num_steps))  # to save transformation matrices
-    save_dir_linear_stabilities = os.path.join(save_dir, '{}-{}_{}-{}/'.format(model1_name, year, model2_name, year))  # to save stability dictionary of linear mapping approach
+        method = args.method
 
-    # sub-directories for saving the transformation matrices
-    dir_name_matrices = os.path.join(save_dir_linear, 'matrices/')
-    dir_name_losses = os.path.join(save_dir_linear, 'loss_plots/')
-
-    mkdir(save_dir_linear)             # create directory if does not already exist
-    mkdir(save_dir_combined_neighbor)  # create directory if does not already exist
-    mkdir(dir_name_matrices)           # create directory if does not already exist
-    mkdir(dir_name_losses)             # create directory if does not already exist
-
-    method = args.method
-
-    if method == 'linear' or method == 'combined':
+        save_dir_matrices = "transformation_matrices/{}-{}/".format(model_name, split_by)
+        mkdir(save_dir_matrices)
 
         learn_stability_matrices(model1=model_nahar,
-                                 model2=model_assafir,
-                                 embeddings_1=embeddings_nahar,
-                                 embeddings_2=embeddings_assafir,
-                                 tokenizer_1=tokenizer_nahar,
-                                 tokenizer_2=tokenizer_assafir,
-                                 model1_name=model1_name,
-                                 model2_name=model2_name,
-                                 subwords=stopwords_list,
-                                 num_steps=num_steps,
-                                 mat_name=mat_name)
-
-        # for w in stopwords_list:
-        #     s = get_stability_linear_mapping_one_word(model1=model_nahar,
-        #                          model2=model_assafir,
-        #                          embeddings_1=embeddings_nahar,
-        #                          embeddings_2=embeddings_assafir,
-        #                          tokenizer_1=tokenizer_nahar,
-        #                          tokenizer_2=tokenizer_assafir,
-        #                          model1_name=model1_name,
-        #                          model2_name=model2_name,
-        #                          mat_name=mat_name,
-        #                         w=w)
-        #
-        #     print(f'stability of {w} is: {s}')
-
-    t1 = time.time()
-    # get_nearest_neighbors(word="فلسطين", year="06")
-    get_stability_combined(models=[model_nahar, model_assafir],
-                           embeddings=[embeddings_nahar, embeddings_assafir],
-                           tokenizers=[tokenizer_nahar, tokenizer_assafir],
-                           models_names=model_names, mat_name=mat_name, words=["فلسطين"],
-                           year=year,
-                           k=k,
-                           save_dir=save_dir_combined_neighbor,
-                           file_name='stabilities_combined')
-
-    t2 = time.time()
-
-    # print(f'Time taken to get nearest neighbors: {(t2-t1)/60} mins')
-    print(f'Time taken to get stability combined: {(t2 - t1) / 60} mins')
-
-    #     get_stability_linear_mapping(model1=model_nahar,
-    #                                  model2=model_assafir,
-    #                                  model1_name=model1_name,
-    #                                  model2_name=model2_name, mat_name=mat_name,
-    #                                  words_path=keywords_path, save_dir=save_dir_linear_stabilities,
-    #                                  file_name='stabilities_linear')
-    #
-    # if method == "combined":
-    #     # run the combined algorithm
-    #     get_stability_combined(models=models, models_names=models_names, mat_name=mat_name, words_path=keywords_path,
-    #                            k=k, save_dir=save_dir_combined_neighbor, file_name='stabilities_combined')
-
-    # if method == "neighbor":
-    #     get_stability_neighbors(models=models, words_path=keywords_path,
-    #                             k=k, save_dir=save_dir_combined_neighbor, file_name='stabilities_neighbor')
+                                     model2=model_assafir,
+                                     embeddings_1=embeddings_nahar,
+                                     embeddings_2=embeddings_assafir,
+                                     tokenizer_1=tokenizer_nahar,
+                                     tokenizer_2=tokenizer_assafir,
+                                     model1_name=model1_name,
+                                     model2_name=model2_name,
+                                     subwords=stopwords_list,
+                                     save_dir=save_dir_matrices)
