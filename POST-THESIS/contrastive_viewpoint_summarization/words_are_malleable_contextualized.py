@@ -786,7 +786,6 @@ if __name__ == '__main__':
         print(len(embeddings_assafir))
 
     k = int(args.k)
-    save_dir = args.save_dir
 
     if split_by == 'weekly':
         years_nahar = get_week_coverage_sorted(archive="An-Nahar")
