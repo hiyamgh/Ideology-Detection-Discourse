@@ -25,11 +25,22 @@ def mkdir(folder):
         os.makedirs(folder)
 
 
-def jaccard_similarity(listoflists):
-    inter = set.intersection(*map(set, listoflists))
-    un = set().union(*listoflists)
-    return float(len(inter) / len(un))
+# def jaccard_similarity(listoflists):
+#     inter = set.intersection(*map(set, listoflists))
+#     un = set().union(*listoflists)
+#     return float(len(inter) / len(un))
 
+
+def jaccard_similarity(str1, str2):
+    # Create character trigrams
+    def char_ngrams(s, n=3):
+        return {s[i:i+n] for i in range(len(s) - n + 1)}
+
+    # Calculate Jaccard similarity between sets of trigrams
+    ngrams1, ngrams2 = char_ngrams(str1), char_ngrams(str2)
+    intersection = len(ngrams1.intersection(ngrams2))
+    union = len(ngrams1.union(ngrams2))
+    return intersection / union
 
 # ax[0].set_xlabel("Combined" if i == 0 else "Neighbor-based" if i == 1 else "Linear-Mapping")
 
@@ -60,6 +71,16 @@ def get_contrastive_viewpoint_summary(w, summary_length, k,
         if count == summary_length:
             break
 
+        should_discard = False
+        for ws in summary1:
+            js = jaccard_similarity(nn, ws[1])
+            if js >= 0.9:
+                should_discard = True
+                break
+
+        if should_discard:
+            continue
+
         st = get_stability_combined_one_word(models, embeddings, tokenizers,
                                models_names, annoy_indexes, vocab_names, dir_name_matrices, nn, year, k)
 
@@ -72,6 +93,16 @@ def get_contrastive_viewpoint_summary(w, summary_length, k,
     for nn in nns2:
         if count == summary_length:
             break
+
+        should_discard = False
+        for ws in summary2:
+            js = jaccard_similarity(nn, ws[1])
+            if js >= 0.9:
+                should_discard = True
+                break
+
+        if should_discard:
+            continue
 
         st = get_stability_combined_one_word(models, embeddings, tokenizers,
                                              models_names, annoy_indexes, vocab_names, dir_name_matrices, nn, year, k)
@@ -86,16 +117,16 @@ def get_contrastive_viewpoint_summary(w, summary_length, k,
     return all_summaries
 
 
-def save_summary(summary2save, save_dir, category_name, word, word_name):
+def save_summary(summary2save, save_dir, category_name, word, word_name, year):
     mkdir(save_dir)
-    with open(os.path.join(save_dir, f'{category_name}_{word_name}.txt'), 'w', encoding='utf-8') as f:
+    with open(os.path.join(save_dir, f'{category_name}_{word_name}_{year}.txt'), 'w', encoding='utf-8') as f:
         f.write(f'Summary for {word} from An-Nahar\n')
         for w in summary2save[0]:
-            f.write(w + '\n')
+            f.write(str(w[0]) + '\t' + str(w[1]) + '\n')
         print('===============================================================')
         f.write(f'Summary for {word} from As-Safir\n')
         for w in summary2save[1]:
-            f.write(w + '\n')
+            f.write(str(w[0]) + '\t' + str(w[1]) + '\n')
     f.close()
 
     # with open(os.path.join(save_dir, 'all_summaries.pickle'), 'wb') as handle:
@@ -136,7 +167,7 @@ if __name__ == '__main__':
     # neighbor and combined approach (words_file is needed by linear approach as well)
     parser.add_argument("--k", default=100, help="number of nearest neighbors to consider per word - for neighbours and combined approach")
     parser.add_argument("--threshold", default="0.5", help="threshold value(s) for generating contrastive viewpoint summaries")
-    parser.add_argument("--cvs_len", default=20, help="length of the contrastive viewpoint summary")  # cvs ==> contrastive viewpoint summary
+    parser.add_argument("--cvs_len", default=30, help="length of the contrastive viewpoint summary")  # cvs ==> contrastive viewpoint summary
     parser.add_argument("--split_by", default="monthly", help="the level at which the summaries are generated -- `weekly` or `monthly`")
     parser.add_argument("--year", default="06", help="the year for which to create the summaries for")
     parser.add_argument("--category", default="political_parties", help="The name of the category as per the contasrtive summary enities file names")
@@ -178,7 +209,6 @@ if __name__ == '__main__':
     k = int(args.k)  # number of nearest neighbors to include when creating contrastive viewpoint summaries
     cvs_len = int(args.cvs_len)  # length of the contrastive viewpoint summary
     save_dir = f"contrastive_summaries/{model_name}-{split_by}/"
-    mkdir(save_dir_matrices)
 
     rootdir = "../generate_bert_embeddings/entities/contrastive_summaries/"
     category_words = []
@@ -218,9 +248,10 @@ if __name__ == '__main__':
                                                       year=year,
                                                       annoy_indexes=[annoy_index_nahar, annoy_index_assafir],
                                                       vocab_names=[vocab_names_nahar, vocab_names_assafir],
-                                                      thresh=thresh)
+                                                      thresh=float(thresh))
 
-        save_summary(summary2save=summaries, save_dir=save_dir, category_name=category, word=w, word_name=f'word_{i}')
+        save_summary(summary2save=summaries, save_dir=save_dir, category_name=category,
+                     word=w, word_name=f'word_{i}', year=year)
 
         t2 = time.time()
         print(f'time taken to complete 1 summary: {(t2 - t1) / 60} mins')
