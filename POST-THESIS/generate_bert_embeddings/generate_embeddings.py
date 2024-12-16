@@ -235,8 +235,7 @@ def get_datasets_by_week(archive_name):
 
 def get_datasets_by_biweek(archive_name):
     datasets = {}
-    root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/{}/'.format(
-        archive_name)
+    root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/{}/'.format(archive_name)
     for file in os.listdir(root_dir):
         month = file[2:4]
         day = file[4:6]
@@ -256,6 +255,7 @@ def get_datasets_by_biweek(archive_name):
 
 
 def get_datasets_by_year(archive_name):
+    datasets = {}
     root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/{}/'.format(archive_name)
     for file in os.listdir(root_dir):
         year = "1982"
