@@ -3,9 +3,9 @@ from transformers import AutoModelForMaskedLM, AutoTokenizer
 import numpy as np
 import pickle
 import gc
-import pandas as pd
 import argparse
 import os
+from datetime import date, datetime
 
 
 def chunks(l, n):
@@ -212,6 +212,62 @@ def get_datasets_by_month(archive_name):
     return datasets
 
 
+def get_datasets_by_week(archive_name):
+    datasets = {}
+    root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/{}/'.format(
+        archive_name)
+    for file in os.listdir(root_dir):
+        month = file[2:4]
+        day = file[4:6]
+        year = "1982"
+        print(f'processing file {file} with year: {year}, month: {month}, day: {day}')
+        given_date = date(int(year), int(month), int(day))
+        week_number = given_date.isocalendar()[1]
+
+        month_week = f"{month}_{str(week_number)}"
+
+        if month_week not in datasets:
+            datasets[month_week] = [os.path.join(root_dir, file)]
+        else:
+            datasets[month_week].append(os.path.join(root_dir, file))
+    return datasets
+
+
+def get_datasets_by_biweek(archive_name):
+    datasets = {}
+    root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/{}/'.format(
+        archive_name)
+    for file in os.listdir(root_dir):
+        month = file[2:4]
+        day = file[4:6]
+        year = "1982"
+        print(f'processing file {file} with year: {year}, month: {month}, day: {day}')
+        date = datetime(int(year), int(month), int(day))
+        day_of_year = date.timetuple().tm_yday
+        biweek_number = (day_of_year - 1) // 14 + 1
+
+        month_biweek = f"{month}_{str(biweek_number)}"
+
+        if month_biweek not in datasets:
+            datasets[month_biweek] = [os.path.join(root_dir, file)]
+        else:
+            datasets[month_biweek].append(os.path.join(root_dir, file))
+    return datasets
+
+
+def get_datasets_by_year(archive_name):
+    root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/{}/'.format(archive_name)
+    for file in os.listdir(root_dir):
+        year = "1982"
+        print(f'processing file {file}')
+
+        if year not in datasets:
+            datasets[year] = [os.path.join(root_dir, file)]
+        else:
+            datasets[year].append(os.path.join(root_dir, file))
+    return datasets
+
+
 def mkdir(folder_name):
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
@@ -221,17 +277,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--max_length", type=int, default=128)
-
-    parser.add_argument('--path_to_model', type=str,
-                        help='Paths to the fine-tuned BERT model',
-                        default='/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/UBC-NLP-MARBERTv2/')
-
+    parser.add_argument('--path_to_model', type=str, help='Paths to the fine-tuned BERT model')
+    parser.add_argument('--split_by', type=str, help="To split the time specific embeddings. "
+                                                     "Value must be `monthly`, `weekly`, `biweekly`, or `yearly`")
     parser.add_argument('--archive', type=str, help='name of the archive to get embeddings for', default='An-Nahar')
-
-
     args = parser.parse_args()
 
-    datasets = get_datasets_by_month(args.archive)
+    split_by = args.split_by
+    if split_by == "monthly":
+        datasets = get_datasets_by_month(args.archive)
+    elif split_by == "weekly":
+        datasets = get_datasets_by_week(args.archive)
+    elif split_by == "biweekly":
+        datasets = get_datasets_by_biweek(args.archive)
+    elif split_by == "yearly":
+        datasets = get_datasets_by_year(args.archive)
+    else:
+        raise ValueError(f"Value of `split_by` argument must be either `monthly`, `weekly`, `biweekly`, or `yearly`, you provided {split_by}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.path_to_model)
     model = AutoModelForMaskedLM.from_pretrained(args.path_to_model, output_hidden_states=True)
@@ -239,8 +301,11 @@ if __name__ == '__main__':
     model.cuda()
     model.eval()
 
-    model_name = args.path_to_model.replace('/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/', "").replace("/", "")
-    save_dir = 'opinionated_articles_DrNabil/1982/embeddings/{}/{}/'.format(args.archive, model_name)
+    model_name = args.path_to_model.replace('/onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/', "").replace("An-Nahar", "").replace("As-Safir", "").replace("/", "")
+
+    # create a directory to save time-specific embeddings for words/tokens,
+    # inspired by archive name, model name, and the `split_by`
+    save_dir = 'opinionated_articles_DrNabil/1982/embeddings/{}/{}/{}'.format(args.archive, model_name, split_by)
     mkdir(save_dir)
     embeddings_path = os.path.join(save_dir, "embeddings.pickle")
 

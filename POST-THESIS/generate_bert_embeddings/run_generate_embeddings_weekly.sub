@@ -10,7 +10,7 @@
 #SBATCH --mem=64000
 #SBATCH --time=23:00:00 # Walltime
 #SBATCH -A p118
-#SBATCH --array=2-18%9
+#SBATCH --array=1-18%9
 
 # Load any necessary modules, in this case OpenMPI with CUDA
 module purge
