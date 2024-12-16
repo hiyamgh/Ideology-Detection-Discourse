@@ -8,7 +8,7 @@ from bidi.algorithm import get_display
 import argparse
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from normalization import ArabicNormalizer
-from datetime import date
+from datetime import date, datetime
 from scipy.stats import wasserstein_distance
 
 
@@ -264,7 +264,7 @@ def get_time_specific_word_embedding(word, year, embeddings, tokenizer, model):
         return embedding
 
 
-def get_week_coverage_sorted(archive):
+def get_week_coverage_sorted(archive, months_to_include=None):
     """
     loops over the .txt files and returns a sorted list of months-weeknbs
     """
@@ -274,6 +274,11 @@ def get_week_coverage_sorted(archive):
         month = file[2:4]
         day = file[4:6]
         year = "1982"
+
+        if months_to_include is not None:
+            if month not in months_to_include:
+                continue
+
         print(f'processing file {file} with year: {year}, month: {month}, day: {day}')
         given_date = date(int(year), int(month), int(day))
         week_number = given_date.isocalendar()[1]
@@ -287,6 +292,36 @@ def get_week_coverage_sorted(archive):
     print(f"months_weeks sorted for {archive}: {months_weeks_ls}")
 
     return months_weeks_ls
+
+
+def get_biweek_coverage_sorted(archive, months_to_include=None):
+    """
+    loops over the .txt files and returns a sorted list of months-biweeknbs
+    """
+    months_biweeks = set()
+    root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/{}/'.format(archive)
+    for file in os.listdir(root_dir):
+        month = file[2:4]
+        day = file[4:6]
+        year = "1982"
+
+        if months_to_include is not None:
+            if month not in months_to_include:
+                continue
+
+        print(f'processing file {file} with year: {year}, month: {month}, day: {day}')
+        date = datetime(int(year), int(month), int(day))
+        day_of_year = date.timetuple().tm_yday
+        biweek_number = (day_of_year - 1) // 14 + 1
+
+        month_biweek = f"{month}_{str(biweek_number)}"
+        months_biweeks.add(month_biweek)
+
+    months_biweeks_l = list(months_biweeks)
+    months_biweeks_ls = sorted(months_biweeks_l, key=lambda x: (int(x.split('_')[0]), int(x.split('_')[1])))
+    print(f"months_biweeks sorted for {archive}: {months_biweeks_ls}")
+
+    return months_biweeks_ls
 
 
 def embedding_bias(embeddings, years, target_list1, target_list2, neutral_list, distance_type, tokenizer, model, device="cpu"):
@@ -363,14 +398,16 @@ if __name__ == '__main__':
             'target_list': [
                 '../generate_bert_embeddings/entities/bias_quantification/negative_conn_2.txt',
                 '../generate_bert_embeddings/entities/bias_quantification/positive_conn_2.txt',
-            ]
+            ],
+            'months_to_include': ['08', '09']
         },
         'Israeli Invasion': {
             'neutral_list': '../generate_bert_embeddings/entities/bias_quantification/entities3.txt',
             'target_list': [
                 '../generate_bert_embeddings/entities/bias_quantification/negative_conn_3.txt',
                 '../generate_bert_embeddings/entities/bias_quantification/positive_conn_3.txt',
-            ]
+            ],
+            'months_to_include': ['06', '07', '08', '09']
         },
         'Palestinians': {
             'neutral_list': '../generate_bert_embeddings/entities/bias_quantification/entities4.txt',
@@ -388,12 +425,18 @@ if __name__ == '__main__':
         }
     }
 
-    months_weeknbs_nahar = get_week_coverage_sorted(archive="An-Nahar")
-    months_weeknbs_assafir = get_week_coverage_sorted(archive="As-Safir")
-
     model_name = args.model_name
     split_by = args.split_by
     dist_type = args.disttype
+
+    if split_by == 'weekly':
+        months_weeknbs_nahar = get_week_coverage_sorted(archive="An-Nahar")
+        months_weeknbs_assafir = get_week_coverage_sorted(archive="As-Safir")
+    elif split_by == 'biweekly':
+        months_weeknbs_nahar = get_biweek_coverage_sorted(archive="An-Nahar")
+        months_weeknbs_assafir = get_biweek_coverage_sorted(archive="As-Safir")
+    else:
+        raise ValueError(f"the provided split {split_by} is not supported.")
 
     for event_name in entities_target_neutral_lists:
         biases = {}
@@ -430,6 +473,16 @@ if __name__ == '__main__':
         file_entities = entities_target_neutral_lists[event_name]['neutral_list']
         file_negconn = entities_target_neutral_lists[event_name]['target_list'][0]
         file_posconn = entities_target_neutral_lists[event_name]['target_list'][1]
+
+        if 'months_to_include' in entities_target_neutral_lists[event_name]:
+            if split_by == 'weekly':
+                months_weeknbs_nahar = get_week_coverage_sorted(archive="An-Nahar", months_to_include=entities_target_neutral_lists[event_name]['months_to_include'])
+                months_weeknbs_assafir = get_week_coverage_sorted(archive="As-Safir", months_to_include=entities_target_neutral_lists[event_name]['months_to_include'])
+            elif split_by == 'biweekly':
+                months_weeknbs_nahar = get_biweek_coverage_sorted(archive="An-Nahar", months_to_include=entities_target_neutral_lists[event_name]['months_to_include'])
+                months_weeknbs_assafir = get_biweek_coverage_sorted(archive="As-Safir", months_to_include=entities_target_neutral_lists[event_name]['months_to_include'])
+        else:
+            pass
 
         with open(file_entities, encoding='utf-8') as f:
             entities = f.readlines()
@@ -468,5 +521,5 @@ if __name__ == '__main__':
                                       ylabel=f"Avg. Embedding Bias for {event_name}",
                                       event_name=event_name,
                                       distance_type=dist_type,
-                                      save_dir="plots/"
+                                      save_dir=f"plots/{split_by}"
                                       )
