@@ -1,5 +1,0 @@
-You are given a paragraph extracted from an Arabic newspaper. Read the paragraph and extract words or collocations that seek to represent certain entities in a negative or positive way. When you extract such words or collocations, extract the entities they are referring to, and the sentence were this appeared.
-Your answer should like like: Word/collocation: {the word/collocation}, entity(ies): {the entity/ies}, Sentence: {the sentence}.
-Enclose your answer with <<<>>>.
-Paragraph: {}
-Answer:
