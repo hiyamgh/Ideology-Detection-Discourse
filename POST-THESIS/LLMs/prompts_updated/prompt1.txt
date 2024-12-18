@@ -1,0 +1,9 @@
+Bachir Gemayel was the commander of Lebanese forces, which was the military wing of the Kataeb Party during the Lebanese Civil War. While Israel invaded Lebanon in 1982, the IDF had a plan to kick the PLO out of Lebanon as it was a threat to Israel. As the PLO's presence was angering many Lebanese leftists, Gemayel planned on using his political relations to kick the Syrian army out of Lebanon and convince the Americans to pressure Israel to withdraw from Lebanon. Gemayel was elected as a President in August 23, 1982, but was then assassinated on September 14, 1982.
+Given the context above, you will be provided with excerpts of text from Lebanese newspapers, your task is to extract negative and positive connotations surrounding Bachir Gemayel.
+Your answer should look like this:
+Negative connotations: [list of negative connotations, separated by commas].
+Positive connotations: [list of positive connotations, separated by commas].
+Enclose your answer with <<<>>>.
+Dont translate the connotations to English, put them as is.
+Text: {}
+Answer:

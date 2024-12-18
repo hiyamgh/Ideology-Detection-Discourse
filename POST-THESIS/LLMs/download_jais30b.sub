@@ -1,0 +1,18 @@
+#!/bin/bash -l
+
+#SBATCH --job-name=download # Job name
+#SBATCH --partition=cpu # Partition
+#SBATCH --nodes=1 # Number of nodes
+#SBATCH --ntasks-per-node=1  # Number of tasks
+#SBATCH --output=%j.out # Stdout (%j=jobId)
+#SBATCH --error=%j.err # Stderr (%j=jobId)
+#SBATCH --time=23:59:00 # Walltime
+#SBATCH -A p118
+
+#Load any necessary modules, in this case OpenMPI with CUDA
+module purge
+module load Java/11.0.16
+module load Python/3.10.4-GCCcore-11.3.0
+module load PyTorch/1.12.0-foss-2022a-CUDA-11.7.0
+
+huggingface-cli download core42/jais-30b-chat-v3 --local-dir /nvme/h/lb21hg1/.cache/huggingface/hub/
