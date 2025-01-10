@@ -1,0 +1,17 @@
+#!/bin/bash -l
+
+#SBATCH --job-name=dllama32 # Job name
+#SBATCH --partition=cpu # Partition
+#SBATCH --nodes=1 # Number of nodes
+#SBATCH --ntasks-per-node=1  # Number of tasks
+#SBATCH --output=%j.out # Stdout (%j=jobId)
+#SBATCH --error=%j.err # Stderr (%j=jobId)
+#SBATCH --time=23:59:00 # Walltime
+#SBATCH -A p118
+
+#Load any necessary modules, in this case OpenMPI with CUDA
+module purge
+source /nvme/h/lb21hg1/hiyam3.11venv/bin/activate
+
+huggingface-cli login --token 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
+huggingface-cli download meta-llama/Llama-3.2-1B --local-dir /nvme/h/lb21hg1/.cache/huggingface/Llama-3.2-1B
