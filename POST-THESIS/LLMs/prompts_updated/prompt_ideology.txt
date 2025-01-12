@@ -1,0 +1,17 @@
+From the content you read above, did you find any of the following:
+* Actor description: description of certain actors that emphasize/de-emphasize certain characteristics.
+* Dramatization: Exaggeration of certain facts and usage of certain words that trigger that.
+* Evidentiality: Proofs or arguments to enhance and support certain arguments.
+* National self-glorification: Praise of one's own country, principles, histories, or traditions.
+* Victimization: a certain group/entity/actor is shown to be a victim of another group/entity/actor
+* Positive self-representation: an emphasis on the positive aspects of a group/entity/actor is shown.
+* Negative other-representation: an emphasis on the negative aspects of a group/entity/actor is shown.
+
+If you found one, or more of the categories above output:
+* The part of the sentence that contains the category
+* The name of the category
+* Justification of why this category fits that part of the sentence
+
+If you did not find any of the categories above, just output: 'None'.
+
+Answer:

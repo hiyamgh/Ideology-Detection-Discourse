@@ -32,15 +32,16 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"  # Adjust as nee
 
 
 def get_response(prompt):
-    messages = [
-        {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
-        {"role": "user", "content": prompt}
-    ]
-    text = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True
-    )
+    # messages = [
+    #     {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
+    #     {"role": "user", "content": prompt}
+    # ]
+    # text = tokenizer.apply_chat_template(
+    #     messages,
+    #     tokenize=False,
+    #     add_generation_prompt=True
+    # )
+    text = prompt
     model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
 
     generated_ids = model.generate(**model_inputs, max_new_tokens=512)
@@ -56,25 +57,28 @@ def mkdir(folder_name):
         os.makedirs(folder_name)
 
 
-# # mapping of the events to the first 3 days of the file names
-# events = {
-#     'Philip Habib Negotiations': ['820607', '820608', '820609'],
-#     'Alexander Haig resignation': ['820625', '820626', '820627'],
-#     'The PLO approves Philip Habibs initiative to withdraw from Lebanon': ['820807', '820808', '820809'],
-#     'Bachir Gemayel Election': ['820823', '820824', '820825'],
-#     'Arafat and the PLO withdraw from Beirut': ['820914', '820915', '820916'],
-#     'Sabra and Shatila Massacre': ['820915', '820916', '820917'],
-#     'Election of Amine Gemayel': ['820921', '820922', '820923']
-# }
+# mapping of the events to the first 3 days of the file names
+events = {
+    'Philip_Habib_Negotiations': ['820607', '820608', '820609'],
+    'Alexander_Haig_resignation': ['820625', '820626', '820627'],
+    'The_PLO_approves_Philip Habibs_initiative_to_withdraw_from_Lebanon': ['820807', '820808', '820809'],
+    'Bachir_Gemayel_Election': ['820823', '820824', '820825'],
+    'Arafat_and_the_PLO_withdraw_from_Beirut': ['820914', '820915', '820916'],
+    'Sabra_and_Shatila_Massacre': ['820915', '820916', '820917'],
+    'Election_of_Amine_Gemayel': ['820921', '820922', '820923']
+}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="LLMs for Hate & Sectarian Speech Detection")
-    parser.add_argument("--model_name", type=str, default="/nvme/h/lb21hg1/.cache/huggingface/Qwen2.5-7B-Instruct/", help="The model to use for prediction")
-    parser.add_argument("--prompt_file", type=str, default="prompts/prompt7.txt", help="The model to use for prediction")
+    parser.add_argument("--model_name", type=str, default="/scratch/8379933-hg31/huggingface_models/meta-llama/Llama-3.1-8B/", help="The model to use for prediction")
+    parser.add_argument("--event_name", type=str, default="Bachir_Gemayel_Election")
+    parser.add_argument("--prompt_file", type=str, default="prompts_updated/prompt9.txt", help="The model to use for prediction")
     parser.add_argument("--entity_name", type=str, default="اسرائيل", help="The name of the entity to extract connotations for")
     args = parser.parse_args()
 
-    rootdir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/'
+    # rootdir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/'
+    rootdir = "/scratch/8379933-hg31/txt_files/"
+    event = args.event_name.strip()
     # rootdir = '../generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/'
 
     archives = ['An-Nahar', 'As-Safir']
@@ -100,13 +104,14 @@ if __name__ == '__main__':
         final_chunks[archive] = []
         path = os.path.join(rootdir, archive)
         for file in os.listdir(path):
-            with open(os.path.join(path, file), encoding='utf-8') as f:
-                lines = f.readlines()
-                chunks = [lines[i: i + 10] for i in range(0, len(lines), 10)]
-                for c in chunks:
-                    fc = '\n'.join([l.replace('\n', '') for l in c])
-                    # print(file, fc)
-                    final_chunks[archive].append(fc)
+            if '.txt' in file and any([substr in file for substr in events[event]]):
+                with open(os.path.join(path, file), encoding='utf-8') as f:
+                    lines = f.readlines()
+                    chunks = [lines[i: i + 10] for i in range(0, len(lines), 10)]
+                    for c in chunks:
+                        fc = '\n'.join([l.replace('\n', '') for l in c])
+                        # print(file, fc)
+                        final_chunks[archive].append(fc)
 
     login(token="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")
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -134,7 +139,8 @@ if __name__ == '__main__':
 
         for text_chunk in final_chunks[archive]:
             with open(args.prompt_file, encoding="utf-8") as f:
-                prompt = f.read().replace('{entity_name}', f'{args.entity_name}').replace("{text}", f"{text_chunk}")
+                # prompt = f.read().replace('{entity_name}', f'{args.entity_name}').replace("{text}", f"{text_chunk}")
+                prompt = f.read().replace("{text}", f"{text_chunk}")
 
             print(prompt)
             response = get_response(prompt)

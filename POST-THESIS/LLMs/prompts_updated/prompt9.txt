@@ -1,0 +1,21 @@
+Bachir Gemayel was the commander of Lebanese forces, which was the military wing of the Kataeb party during the Lebanese Civil War.
+The Palestinian presence through the PLO as well as the Syrian presence was angering many Lebanese leftists, and the IDF had plans of rooting up the PLO threat to Israel.
+Gemayel allied with Israel and his forces fought the PLO and the Syrian Army.
+The context above generated a lot of controversy with differing stances towards Gemayel and the Ktaeb Party, which was demonstrated through many Lebanese newspapers.
+You will be given excerpts of text from Lebanese newspapers, and your task is to identify the presence of text structures and strategies that talk about the topic above using either of the following ways:
+* Extreme levels of description and degrees of completeness: Sentence describing a certain group with a lot of details or with some vagueness
+* Implications: Sentence that uses certain pronouns that imply negative things about a certain group.
+* Denominations: Sentence that describes one group as being different from another group that especially uses words such as immigrants, others, opponents, and so on.
+* Agency: Sentence that holds a certain group responsible for certain negative actions with emphasis on their agency
+* Focus: Sentence that focuses on certain textual aspects such as participants or actions
+* Demonstratives: Sentence that signals closeness or distance to a certain group.
+* Pronouns: Sentence that uses words such as 'us' and 'them' to classify in-groups or out-groups
+* Active/Passive Sentences: Active sentence associated with negative actions of a group, or passive sentences associated with positive actions of a group
+
+If any of the above structures is found in the text, output the: (1) sentence(s) and (2) the corresponding structure(s) name(s), (3) the explanation in the following format:
+Sentence: <the sentence>, Structure(s): <teh structure(s)>, Explanation: <the explanation>
+Out each extracted sentence, and its corresponding structure(s) and explanation on a separate line.
+If none of the structures if found, output "None".
+
+Text: {text}
+Answer:

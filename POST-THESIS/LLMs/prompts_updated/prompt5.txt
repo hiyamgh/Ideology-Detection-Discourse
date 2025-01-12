@@ -1,0 +1,12 @@
+Bachir Gemayel was the commander of Lebanese forces, which was the military wing of the Kataeb party during the Lebanese Civil War.
+As the PLO's presence was angering many Lebanese leftists, and the IDF had plans of rooting up the PLO threat to Israel.
+Gemayel had planned to use the IDF to push the Syrian Army out of Lebanon and then use his relations with the Americans to pressure the Israelis into withdrawing from Lebanese territory.
+Gemayel was elected as a President on August 23, 1982, but was then assassinated on September 14, 1982.
+Given the context above, you will be provided with excerpts of text from Lebanese newspapers, and your task is to extract all words or phrases in the given excerpt of text that are:
+
+Subjective, non-professional, ideological, manipulative, inflammatory, polarizing, depressing, or reactionary.
+
+Enclose your answer with <<<>>>.
+Don't translate the connotations to English, put them as is.
+Text: {}
+Answer:
