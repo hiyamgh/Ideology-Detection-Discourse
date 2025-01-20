@@ -3,48 +3,18 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import login
 import os
 import argparse
+from prompts import prompts_dict
+
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"  # Adjust as needed
 
-# def get_response(text):
-#     input_ids = tokenizer(text, return_tensors="pt").input_ids
-#     # print(input_ids)
-#     attention_mask = (input_ids != tokenizer.pad_token_id).long()  # Create attention mask
-#     attention_mask = attention_mask
-#     # print(attention_mask)
-#     inputs = input_ids
-#     input_len = inputs.shape[-1]
-#     generate_ids = model.generate(
-#         inputs,
-#         attention_mask=attention_mask,  # Pass attention mask here
-#         top_p=0.85,
-#         temperature=0.9,
-#         max_length=input_len + 10,
-#         min_length=input_len + 4,
-#         repetition_penalty=1.2,
-#         do_sample=True,
-#     )
-#     response = tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)[0]
-#     response = response[len(tokenizer.decode(input_ids[0], skip_special_tokens=True)) + 1:]  # Skip the prompt length
-#
-#     return response.strip()  # Strip any leading/trailing whitespace
-#
-
 
 def get_response(prompt):
-    # messages = [
-    #     {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
-    #     {"role": "user", "content": prompt}
-    # ]
-    # text = tokenizer.apply_chat_template(
-    #     messages,
-    #     tokenize=False,
-    #     add_generation_prompt=True
-    # )
     text = prompt
     model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
 
-    generated_ids = model.generate(**model_inputs, max_new_tokens=512)
+    # generated_ids = model.generate(**model_inputs, max_new_tokens=512)
+    generated_ids = model.generate(**model_inputs, max_new_tokens=256)
     generated_ids = [
         output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
     ]
@@ -70,44 +40,31 @@ events = {
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="LLMs for Hate & Sectarian Speech Detection")
-    parser.add_argument("--model_name", type=str, default="/scratch/8379933-hg31/huggingface_models/meta-llama/Llama-3.1-8B/", help="The model to use for prediction")
+    parser.add_argument("--model_name", type=str, default="meta-llama/Llama-3.1-8B-Instruct/", help="The model to use for prediction")
     parser.add_argument("--event_name", type=str, default="Bachir_Gemayel_Election")
-    parser.add_argument("--prompt_file", type=str, default="prompts_updated/prompt9.txt", help="The model to use for prediction")
-    parser.add_argument("--entity_name", type=str, default="اسرائيل", help="The name of the entity to extract connotations for")
+    parser.add_argument("--discourse_structure", type=str, default="modality")
+    parser.add_argument("--template_name", type=str, default="direct")
+    parser.add_argument("--prompt", type=str, default="Hello, who are you and what do you do?")
+    # parser.add_argument("--prompt_file", type=str, default="prompts_updated/prompt9.txt", help="The model to use for prediction")
+    # parser.add_argument("--entity_name", type=str, default="اسرائيل", help="The name of the entity to extract connotations for")
     args = parser.parse_args()
 
     # rootdir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/'
     rootdir = "/scratch/8379933-hg31/txt_files/"
-    event = args.event_name.strip()
+    event_name = args.event_name.strip()
     # rootdir = '../generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/'
 
     archives = ['An-Nahar', 'As-Safir']
-
-    # final_chunks = {}
-    # for archive in archives:
-    #     final_chunks[archive] = {}
-    #     for event in events:
-    #         final_chunks[archive][event] = []
-    #         path = os.path.join(rootdir, archive)
-    #         for file in os.listdir(path):
-    #             if '.txt' in file and any([substr in file for substr in events[event]]):
-    #                 with open(os.path.join(path, file), encoding='utf-8') as f:
-    #                     lines = f.readlines()
-    #                     chunks = [lines[i: i + 20] for i in range(0, len(lines), 20)]
-    #                     for c in chunks:
-    #                         fc = '\n'.join([l.replace('\n', '') for l in c])
-    #                         # print(file, fc)
-    #                         final_chunks[archive][event].append(fc)
 
     final_chunks = {}
     for archive in archives:
         final_chunks[archive] = []
         path = os.path.join(rootdir, archive)
         for file in os.listdir(path):
-            if '.txt' in file and any([substr in file for substr in events[event]]):
+            if '.txt' in file and any([substr in file for substr in events[event_name]]):
                 with open(os.path.join(path, file), encoding='utf-8') as f:
                     lines = f.readlines()
-                    chunks = [lines[i: i + 10] for i in range(0, len(lines), 10)]
+                    chunks = [lines[i: i + 5] for i in range(0, len(lines), 5)]
                     for c in chunks:
                         fc = '\n'.join([l.replace('\n', '') for l in c])
                         # print(file, fc)
@@ -115,14 +72,10 @@ if __name__ == '__main__':
 
     login(token="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")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model_path = "{}".format(args.model_name)
-    # model_path = "/nvme/h/lb21hg1/.cache/huggingface/Qwen2.5-7B-Instruct/"
-    # if 'qwen' in model_path.lower():
-    #     tokenizer = Qwen2Tokenizer.from_pretrained(model_path)
-    # else:
 
+    suffix = "/scratch/shared/ai/models/llms/hugging_face"
+    model_path = os.path.join(suffix, args.model_name)
 
-    # model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto", torch_dtype=torch.bfloat16, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(model_path,
                                                  force_download=True,
                                                  device_map="auto",
@@ -131,16 +84,21 @@ if __name__ == '__main__':
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-    model_name = model_path.replace("/", "-")
-    prompt_file = args.prompt_file.replace("prompts/", "").replace(".txt", "")
+    model_name = args.model_name.replace("/", "-")
+    template = args.template_name
+    discourse_structure = args.discourse_structure
+
+    prompt_original = prompts_dict[event_name][discourse_structure][template]
+
     for archive in archives:
-        output_dir = f'output/{archive}-{model_name}-{prompt_file}/'
+        output_dir = f'Output-Discourse/{archive}-{model_name}-{event_name}-{template}-{discourse_structure}/'
         mkdir(output_dir)
 
         for text_chunk in final_chunks[archive]:
-            with open(args.prompt_file, encoding="utf-8") as f:
+            # with open(args.prompt_file, encoding="utf-8") as f:
                 # prompt = f.read().replace('{entity_name}', f'{args.entity_name}').replace("{text}", f"{text_chunk}")
-                prompt = f.read().replace("{text}", f"{text_chunk}")
+
+            prompt = prompt_original.replace("{text}", f"{text_chunk}")
 
             print(prompt)
             response = get_response(prompt)
