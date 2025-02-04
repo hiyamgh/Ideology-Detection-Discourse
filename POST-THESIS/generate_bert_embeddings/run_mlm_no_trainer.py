@@ -68,6 +68,13 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 def parse_args():
     parser = argparse.ArgumentParser(description="Finetune a transformers model on a Masked Language Modeling task")
     parser.add_argument(
+        "--archive_name",
+        type=str,
+        default="An-Nahar",
+        help="The name of the archive we are fine tuning over"
+    )
+    parser.add_argument("--year", type=str, default="1982")
+    parser.add_argument(
         "--dataset_name",
         type=str,
         default=None,
@@ -435,7 +442,7 @@ def main():
         logger.info("Training new model from scratch")
         model = AutoModelForMaskedLM.from_config(config, trust_remote_code=args.trust_remote_code)
 
-    args.output_dir = "trained_models/{}/".format(args.model_name_or_path.replace("/", "-"))
+    args.output_dir = "trained_models/{}/{}/{}/".format(args.archive_name, args.year, args.model_name_or_path.replace("/", "-"))
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
@@ -602,9 +609,9 @@ def main():
         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
     )
 
-    # On TPU, the tie weights in our model have been disconnected, so we need to restore the ties.
-    if accelerator.distributed_type == DistributedType.TPU:
-        model.tie_weights()
+    # # On TPU, the tie weights in our model have been disconnected, so we need to restore the ties.
+    # if accelerator.distributed_type == DistributedType.TPU:
+    #     model.tie_weights()
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
