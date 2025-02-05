@@ -10,3 +10,4 @@
   * `opinionated_articles_DrNabil/{year}/training_file/{archive_name}/`: is the compilation of all training files in the bullet above into one training under a specified `year` and `archive_name`
 * run `get_epochs.sub` which calls `get_epochs.py` with jobs inside `jobs_epochs.txt` (which are created using `create_jobs_get_epochs.py`)
 * run `run_mlm_no_trainer.sub` which calls `run_mlm_no_trainer.py` with jobs inside `jobs_mlm_epochs.txt` for fine tuning on the `yearly An-Nahar + As-Safir` training (.txt) files through `AutoModelForCausalML`. This will save fine tuned models inside the directory `trained_models/{archive_name}/{year}/{model_name}`
+* run `run_generate_embeddings_yearly_epochs.sub` which calls `generate_embeddings.py` with jobs inside `jobs_generate_embeddings_yearly_epochs.txt` (one job per line).

@@ -1,5 +1,5 @@
 # for weekly
-with open('jobs_generate_embeddings_weekly.txt', 'w') as f:
+with open('jobs_generate_embeddings_weekly_1982.txt', 'w') as f:
     for archive in ["An-Nahar", "As-Safir"]:
         for model_name in ["aubmindlab-bert-base-arabertv2",
                            "aubmindlab-bert-base-arabertv01",
@@ -14,7 +14,7 @@ with open('jobs_generate_embeddings_weekly.txt', 'w') as f:
 
 
 # for biweekly
-with open('jobs_generate_embeddings_biweekly.txt', 'w') as f:
+with open('jobs_generate_embeddings_biweekly_1982.txt', 'w') as f:
     for archive in ["An-Nahar", "As-Safir"]:
         for model_name in ["aubmindlab-bert-base-arabertv2",
                            "aubmindlab-bert-base-arabertv01",
@@ -29,7 +29,7 @@ with open('jobs_generate_embeddings_biweekly.txt', 'w') as f:
 
 
 # for yearly
-with open('jobs_generate_embeddings_yearly.txt', 'w') as f:
+with open('jobs_generate_embeddings_yearly_1982.txt', 'w') as f:
     for archive in ["An-Nahar", "As-Safir"]:
         for model_name in ["aubmindlab-bert-base-arabertv2",
                            "aubmindlab-bert-base-arabertv01",
@@ -40,5 +40,5 @@ with open('jobs_generate_embeddings_yearly.txt', 'w') as f:
                            "UBC-NLP-MARBERT",
                            "qarib-bert-base-qarib",
                            "UBC-NLP-MARBERTv2"]:
-            f.write(f'--archive {archive} --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/{archive}/{model_name}/ --split_by yearly\n')
+            f.write(f'--archive {archive} --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/{archive}/{model_name}/ --split_by yearly --year 1982\n')
 

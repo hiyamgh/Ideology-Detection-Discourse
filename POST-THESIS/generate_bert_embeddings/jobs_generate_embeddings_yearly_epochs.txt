@@ -1,0 +1,23 @@
+--archive An-Nahar --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/1983/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1983
+--archive As-Safir --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/1983/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1983
+--archive An-Nahar --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/1984/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1984
+--archive As-Safir --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/1984/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1984
+--archive An-Nahar --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/1989/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1989
+--archive As-Safir --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/1989/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1989
+--archive An-Nahar --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/1990/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1990
+--archive As-Safir --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/1990/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1990
+--archive An-Nahar --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/1991/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1991
+--archive As-Safir --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/1991/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1991
+--archive An-Nahar --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/1992/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1992
+--archive As-Safir --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/1992/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1992
+--archive An-Nahar --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/1993/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1993
+--archive As-Safir --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/1993/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1993
+--archive An-Nahar --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/1994/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1994
+--archive As-Safir --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/1994/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1994
+--archive An-Nahar --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/An-Nahar/1995/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1995
+--archive As-Safir --path_to_model /onyx/data/p118/POST-THESIS/generate_bert_embeddings/trained_models/As-Safir/1995/aubmindlab-bert-base-arabertv2/ --split_by yearly --year 1995
+
+
+
+
+

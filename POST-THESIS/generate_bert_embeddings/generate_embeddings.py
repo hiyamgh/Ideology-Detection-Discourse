@@ -254,11 +254,11 @@ def get_datasets_by_biweek(archive_name):
     return datasets
 
 
-def get_datasets_by_year(archive_name):
+def get_datasets_by_year(archive_name, year):
     datasets = {}
-    root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/1982/txt_files/{}/'.format(archive_name)
+    root_dir = '/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/{}/txt_files/{}/'.format(year, archive_name)
     for file in os.listdir(root_dir):
-        year = "1982"
+        year = f"{year}"
         print(f'processing file {file}')
 
         if year not in datasets:
@@ -280,10 +280,12 @@ if __name__ == '__main__':
     parser.add_argument('--path_to_model', type=str, help='Paths to the fine-tuned BERT model')
     parser.add_argument('--split_by', type=str, help="To split the time specific embeddings. "
                                                      "Value must be `monthly`, `weekly`, `biweekly`, or `yearly`")
+    parser.add_argument("--year", type=str, help="The year to get teh dataset from, if `--split_by` is set to `yearly`")
     parser.add_argument('--archive', type=str, help='name of the archive to get embeddings for', default='An-Nahar')
     args = parser.parse_args()
 
     split_by = args.split_by
+    year = args.year
     if split_by == "monthly":
         datasets = get_datasets_by_month(args.archive)
     elif split_by == "weekly":
@@ -291,7 +293,7 @@ if __name__ == '__main__':
     elif split_by == "biweekly":
         datasets = get_datasets_by_biweek(args.archive)
     elif split_by == "yearly":
-        datasets = get_datasets_by_year(args.archive)
+        datasets = get_datasets_by_year(args.archive, year)
     else:
         raise ValueError(f"Value of `split_by` argument must be either `monthly`, `weekly`, `biweekly`, or `yearly`, you provided {split_by}")
 
@@ -305,7 +307,7 @@ if __name__ == '__main__':
 
     # create a directory to save time-specific embeddings for words/tokens,
     # inspired by archive name, model name, and the `split_by`
-    save_dir = 'opinionated_articles_DrNabil/1982/embeddings/{}/{}/{}'.format(args.archive, model_name, split_by)
+    save_dir = 'opinionated_articles_DrNabil/{}/embeddings/{}/{}/{}'.format(year, args.archive, model_name, split_by)
     mkdir(save_dir)
     embeddings_path = os.path.join(save_dir, "embeddings.pickle")
 
