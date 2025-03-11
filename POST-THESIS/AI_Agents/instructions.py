@@ -119,3 +119,35 @@ For each extracted sentence output:
 - Actor: the group by which its action was described with exaggeration.
 - Exaggerated words: the loaded words that yielded to the exaggerated representation.
 """
+
+
+instruction_evidentiality = """
+You will be given an excerpt of text taken from a Lebanese newspaper.
+Extract all sentences that reference: authoritative figures or institutions to support an argument.
+For each extracted sentence return:
+- Sentence: the extracted sentence containing references supporting an argument.
+- Argument: the argument being posed in the sentence.
+- Reference: the reference being made to support the argument.
+"""
+
+
+instruction_national_self_glorification = """
+You will be given an excerpt of text taken from a Lebanese newspaper.
+Extract all sentences that contain forms of praise or pride about a group's principles or activities.
+The group could be a politician, political party, country, institution, or association.
+For each extracted sentence return:
+- Sentence: the extracted sentence containing the form of praise.
+- Subject(s): the subject(s) that was/were praised. 
+- Praise(s): the part of the sentence containing the praise(s)/pride(s).
+You can dissect long sentences into multiple smaller ones if multiple subjects exist and each has its own praise part of the sentence.
+"""
+
+instruction_victimization = """
+You will be given an excerpt of text taken from a Lebanese newspaper.
+Extract all sentences were a certain group is represented as being injured, threatened, or affected by the actions of another group.
+Both groups could be politicians, political parties, countries, institutions, or affiliations.
+For each extracted sentence, return:
+- Sentence: the extracted sentence containing the representation outlined above.
+- Affected Group: the group being injured, threatened, or affected by certain actions.
+- Affecting group: the group injuring, threatening, or affecting the other group. 
+"""

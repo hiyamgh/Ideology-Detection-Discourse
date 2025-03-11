@@ -33,7 +33,7 @@ print(len(text_assafir.split(" ")))
 response = client.models.generate_content(
     model="gemini-2.0-flash",
     config=types.GenerateContentConfig(
-        system_instruction=instruction_dramatization),
+        system_instruction=instruction_victimization),
     contents=[prompt]
 )
 

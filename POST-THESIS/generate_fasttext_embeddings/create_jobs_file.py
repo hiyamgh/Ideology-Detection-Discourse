@@ -2,7 +2,7 @@ years = list(range(1982, 2012))
 months = list(range(1, 13))
 archives = ['nahar', 'assafir']
 
-with open('jobs.txt', 'w') as f:
+with open('jobs_evaluate_stability.txt', 'w') as f:
     for ar in archives:
         for y in years:
             if y > 2009 and ar == 'nahar':
