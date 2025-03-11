@@ -13,64 +13,35 @@ def mkdir(folder):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--archive', type=str, default='assafir', help="name of the archive to transform")
-    parser.add_argument('--neg', type=int, help='number of negatives sampled')
-    parser.add_argument('--dim', type=int, help='embedding vectors dimension')
+    parser.add_argument('--neg', type=int, default=15, help='number of negatives sampled')
+    parser.add_argument('--dim', type=int, default=300, help='embedding vectors dimension')
     parser.add_argument('--year', type=int, help='year to train on')
-    parser.add_argument('--month', type=int, default=None, help='month to train on')
+    parser.add_argument("--train_file", type=str, help=".txt file to train over")
     args = parser.parse_args()
 
     archive = args.archive
+    year = args.year
+    file = args.train_file
+    neg = args.neg
+    dim = 300
+    minCount = 300
+    wordNgrams = 4
+    ws = 5
+    lr = 0.001
 
-    if args.month is not None:
-        data_folder = "../original_data/data_splitting/txt_files/{}/monthly/".format(archive)
-        logdir = 'trained_embeddings/{}/monthly/dim{}-negative{}/'.format(args.archive, args.dim, args.neg)
-    else:
-        data_folder = "../original_data/data_splitting/txt_files/{}/yearly/".format(archive)
-        logdir = 'trained_embeddings/{}/yearly/dim{}-negative{}/'.format(args.archive, args.dim, args.neg)
-
+    logdir = f"trained_models/{archive}/{year}-neg{neg}-dim{dim}-minCount{minCount}-wordNgrams{wordNgrams}-ws{ws}-lr{lr}/"
     mkdir(logdir)
 
-    print('hello')
+    print(f'Processing the data file: {file}')
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    model = fasttext.train_unsupervised(input=file,
+                                        model="skipgram",
+                                        dim=300,
+                                        minCount=300,
+                                        wordNgrams=4,
+                                        neg=args.neg,
+                                        ws=5,
+                                        lr=0.001,
+                                        thread=mp.cpu_count())
 
-    if args.month is not None:
-        for file in os.listdir(data_folder):
-            if file.endswith('.txt'):
-                year = file.split('.')[0].split('-')[0]
-                month = file.split('.')[0].split('-')[1]
-
-                if int(year) == args.year and int(month) == args.month:
-                    if os.stat(os.path.join(data_folder, file)).st_size == 0:
-                        print("file size is 0 -- will not train")
-                        break
-
-                    print(f'Processing the data file: {file}')
-                    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-                    model = fasttext.train_unsupervised(input=os.path.join(data_folder, file),
-                                                        model="skipgram",
-                                                        dim=args.dim,
-                                                        neg=args.neg,
-                                                        thread=mp.cpu_count())
-
-                    model.save_model(os.path.join(logdir, "{}-{}.bin".format(year, month)))
-                    break
-            else:
-                year = file.split('.')[0].split('-')[0]
-
-                if int(year) == args.year:
-                    if os.stat(os.path.join(data_folder, file)).st_size == 0:
-                        print("file size is 0 -- will not train")
-                        break
-
-                    print(f'Processing the data file: {file}')
-                    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-                    model = fasttext.train_unsupervised(input=os.path.join(data_folder, file),
-                                                        model="skipgram",
-                                                        dim=args.dim,
-                                                        neg=args.neg,
-                                                        thread=mp.cpu_count())
-
-                    model.save_model(os.path.join(logdir, "{}.bin".format(year)))
-
-
-
-#  os.stat("file").st_size == 0
+    model.save_model(os.path.join(logdir, "{}.bin".format(year)))

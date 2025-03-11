@@ -2,18 +2,18 @@
 
 #SBATCH --job-name=fasttext # Job name
 #SBATCH --partition=cpu # Partition
-#SBATCH --nodelist=cn05
 #SBATCH --nodes=1 # Number of nodes
 #SBATCH --ntasks-per-node=1  # Number of tasks
 #SBATCH --output=%j.out # Stdout (%j=jobId)
 #SBATCH --error=%j.err # Stderr (%j=jobId)
 #SBATCH --mem=64000
-#SBATCH --time=24:00:00 # Walltime
+#SBATCH --time=23:59:00 # Walltime
 #SBATCH -A p118
-#SBATCH --array=1-696%5
+#SBATCH --array=1-18%18
 
 # Load any necessary modules
 module purge
-module load Python/3.7.4-GCCcore-8.3.0
+module load Python/3.11.3-GCCcore-12.3.0
+module load PyTorch/2.2.2-foss-2023a-CUDA-12.1.1
 
-python train_fasttext.py $(head -n $SLURM_ARRAY_TASK_ID jobs.txt | tail -n 1)
+python train_fasttext.py $(head -n $SLURM_ARRAY_TASK_ID jobs_train_fasttext.txt | tail -n 1)

@@ -1,11 +1,11 @@
-years = list(range(1982, 2012))
-months = list(range(1, 13))
-archives = ['nahar', 'assafir']
+import os
 
-with open('jobs_evaluate_stability.txt', 'w') as f:
+years = [1983, 1984, 1989, 1990, 1991, 1992, 1993, 1994, 1995]
+
+archives = ['An-Nahar', 'As-Safir']
+
+with open('jobs_train_fasttext.txt', 'w') as f:
     for ar in archives:
         for y in years:
-            if y > 2009 and ar == 'nahar':
-                continue
-            for m in months:
-                f.write(f"--archive {ar} --month {m} --year {y} --dim 300 --neg 15\n")
+            train_file = f"/onyx/data/p118/POST-THESIS/generate_bert_embeddings/opinionated_articles_DrNabil/{y}-mod/training_file/{ar}/{y}_{ar}.txt"
+            f.write(f"--archive {ar} --year {y} --train_file {train_file}\n")
