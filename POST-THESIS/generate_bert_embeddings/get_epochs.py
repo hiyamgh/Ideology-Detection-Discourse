@@ -20,8 +20,8 @@ def mkdir(folder_name):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finetune a transformers model on a Masked Language Modeling task")
-    parser.add_argument("--archive_name", type=str, default="An-Nahar", help="The name of the archive we are fine tuning over")
-    parser.add_argument("--year", type=str, default="1982", help="the year if interest")
+    parser.add_argument("--archive_name", type=str, default="As-Safir", help="The name of the archive we are fine tuning over")
+    parser.add_argument("--year", type=str, default="1989", help="the year if interest")
     args = parser.parse_args()
 
     if args.archive_name == "An-Nahar":
@@ -29,7 +29,6 @@ if __name__ == '__main__':
     else:
         dir1 = '/onyx/data/p118/POST-THESIS/original_data/assafir_transformed/'
 
-    epochs_needed = ['1983', '1984', '1989', '1990', '1991', '1992', '1993', '1994', '1995']
     dirs = [dir1]  # all nahar directories in one list - helps in looping
     year = args.year
     archive = args.archive_name
@@ -41,14 +40,19 @@ if __name__ == '__main__':
     for subdir, dirs, files in os.walk(rootdir):
         print(subdir)
         for file in files:
-            if file.startswith(f"{year[-2:]}"):
+            # if file.startswith(f"{year[-2:]}"):
+            if file.startswith(f"{year[-2:]}") and file.endswith("01.txt"):
                 shutil.copyfile(os.path.join(subdir, file), os.path.join(save_dir, file))
+            if file.startswith(f"{year[-2:]}") and file.endswith("02.txt"):
+                shutil.copyfile(os.path.join(subdir, file), os.path.join(save_dir, file))
+            else:
+                continue
 
         print('finished copying files')
 
         # generate one file that is a collation of all files collated together
         save_dir_input = save_dir
-        save_dir = f'opinionated_articles_DrNabil/{year}/training_file/{archive}'
+        save_dir = f'opinionated_articles_DrNabil/{year}-mod/training_file/{archive}'
         mkdir(save_dir)
 
         with open(os.path.join(save_dir, f'{year}_{archive}.txt'), 'w') as f:
