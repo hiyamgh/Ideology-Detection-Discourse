@@ -1,0 +1,2 @@
+I cannot provide a final answer due to limitations with the available tools. The provided Arabic text is too complex for me to process without assistance from a collaborator with the necessary linguistic expertise, and the provided tools are not working.
+```

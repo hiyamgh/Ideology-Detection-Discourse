@@ -1,0 +1,152 @@
+identify_agency:
+  description: >
+    You will be given an excerpt of text taken from a Lebanese newspaper.
+    The provided text is Modern Standard Arabic, understand it well even if you dont process Arabic normally.
+    Extract all sentences where a certain ethnic group, political party, or organization are described as being responsible for committing or helping in the establishment of a negative consequence.
+    For each extracted sentence, return on separate lines:
+    - Sentence: The extracted sentence
+    - Agent: the actor responsible for the negative action
+    - Action: the negative action committed or eradicated by the actor.
+
+    Do not translate the sentences.
+
+    The Arabic text you need to process is represented below:
+    Text: {text}
+  expected_output: >
+    A compilation of all sentences, agents, and actions extracted from the text according to the specifications above, using markdown.
+
+identify_victimization:
+  description: >
+    You will be given an excerpt of text taken from a Lebanese newspaper.
+    The provided text is Modern Standard Arabic, understand it well even if you dont process Arabic normally.
+    Extract all sentences were a certain group is represented as being injured, threatened, or affected by the actions of another group.
+    Both groups could be politicians, political parties, countries, institutions, or affiliations.
+    For each extracted sentence, return on separate lines:
+    - Sentence: the extracted sentence containing the representation outlined above.
+    - Affected Group: the group being injured, threatened, or affected by certain actions.
+    - Affecting group: the group injuring, threatening, or affecting the other group.
+
+    Do not translate the sentences.
+
+    The Arabic text you need to process is represented below:
+    Text: {text}
+  expected_output: >
+    A compilation of all sentences, affected groups, and affecting groups extracted from the text according to the specifications above, using markdown.
+
+identify_national_self_glorification:
+  description: >
+    You will be given an excerpt of text taken from a Lebanese newspaper.
+    The provided text is Modern Standard Arabic, understand it well even if you dont process Arabic normally.
+    Extract all sentences that contain forms of praise or pride about a group's principles or activities.
+    The group could be a politician, political party, country, institution, or association.
+    For each extracted sentence return:
+    - Sentence: the extracted sentence containing the form of praise.
+    - Subject(s): the subject(s) that was/were praised.
+    - Praise(s): the part of the sentence containing the praise(s)/pride(s).
+    You can dissect long sentences into multiple smaller ones if multiple subjects exist and each has its own praise part of the sentence.
+
+    The Arabic text you need to process is represented below:
+    Text: {text}
+
+  expected_output:
+    A compilation of all sentences, subject(s), and phrase(s) extracted from the text according to the specifications above, using markdown.
+
+identify_evidentiality:
+  description: >
+    You will be given an excerpt of text taken from a Lebanese newspaper.
+    The provided text is Modern Standard Arabic, understand it well even if you dont process Arabic normally.
+    Extract all sentences that reference: authoritative figures or institutions to support an argument.
+    For each extracted sentence return:
+    - Sentence: the extracted sentence containing references supporting an argument.
+    - Argument: the argument being posed in the sentence.
+    - Reference: the reference being made to support the argument.
+
+    Text: {text}
+
+  expected_output: >
+    A compilation of all sentences, arguments, and references extracted from the text according to the specifications above, using markdown.
+
+identify_dramatization:
+  description: >
+    You will be given an excerpt of text taken from a Lebanese newspaper.
+    The provided text is Modern Standard Arabic, understand it well even if you dont process Arabic normally.
+    Extract all sentences that contain an exaggeration in a description of a group's certain actions.
+    For each extracted sentence output:
+    - Sentence: the extracted sentence containing the exaggeration.
+    - Actor: the group by which its action was described with exaggeration.
+    - Exaggerated words: the loaded words that yielded to the exaggerated representation.
+
+    Text: {text}
+
+  expected_output: >
+    A compilation of all sentences, actors, and exaggerated words extracted from the text according to the specifications above, using markdown.
+
+identify_disclaimer:
+  description: >
+    You will be given an excerpt of text taken from a Lebanese newspaper.
+    The provided text is Modern Standard Arabic, understand it well even if you dont process Arabic normally.
+    Extract all sentences that:
+    - start by denying adverse feelings about a certain group: ethnicity, political party, or country
+    - the next part of the sentence, despite the start, is full of negative things or actions about the group.
+    For each extracted sentence output:
+    - Sentence: the extracted sentence
+    - Actor: the group which was described negatively in the second part of the sentence
+    - Transition: the part of the sentence where there was a transition in the description of the actor.
+
+    Text: {text}
+  expected_output: >
+    A compilation of all sentences, actors, and transitions extracted from the text according to the specifications above, using markdown.
+
+identify_denomination:
+  description: >
+    You will be given an excerpt of text taken from a Lebanese newspaper.
+    The provided text is Modern Standard Arabic, understand it well even if you dont process Arabic normally.
+    Extract all sentences where a certain ethnic group, political party, or organization are described as inferior with the use of words such as:
+    * opponents, immigrants, others, extremists, insurgents, armed, takfiri, militants, terrorists, rebels, etc.
+    For each extracted sentence output:
+    - Sentence: The sentence containing the aforementioned description.
+    - Actor: the group of of people described as inferior.
+    - Inferiority: the inferior word(s) used to describe the actor above.
+
+    Text: {text}
+
+  expected_output: >
+    A compilation of all sentences, actors, and inferiorities extracted from the text according to the specifications above, using markdown.
+
+identify_LDC:
+  decsription: >
+    You will be given an excerpt of text taken from a Lebanese newspaper.
+    Extract all sentences that are describing a certain action made by: a politician, political party, or country.
+    The actions must be restricted to any form of military practices.
+    For each extracted sentence output:
+    - Sentence: The sentence containing the military action.
+    - Actor: The subject exercising the certain action
+    - Action: The action being done by the subject
+    - Degree of description: Either 'detailed' or 'broad'
+    - Representation: whether the action exercised by the subject is represented positively (positive) or negatively (negative).
+
+    Text: {text}
+  expected_output: >
+    A compilation of all sentences, actors, actions, degree of descriptions, and representations extracted from the text according to the specifications above, using markdown.
+
+
+identify_themes:
+  description: >
+    You will be given an excerpt of text extracted from a Lebanese newspaper.
+    The provided text is Modern Standard Arabic, understand it well even if you dont process Arabic normally.
+    You will also be given a certain theme description.
+    Extract all sentences from the provided text that are discussing or mentioning the provided theme.
+    For each sentence you extract output:
+    - sentence: the sentence containing the theme.
+    - phrases: the phrases used to describe the theme.
+
+    Do not translate the sentences.
+
+    The Arabic text you need to process is provided below:
+    {text}
+
+    The theme you have to look for in the text above is provided below:
+    {theme}
+
+  expected_output: >
+    A compilation of all sentences and phrases used to describe the provided theme, using markdown.

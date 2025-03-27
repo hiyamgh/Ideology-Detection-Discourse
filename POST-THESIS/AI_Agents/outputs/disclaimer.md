@@ -1,0 +1,10 @@
+The provided Arabic text is incomplete and contains errors, making a full analysis impossible.  Based on my limited understanding, I can partially address the request.
+
+
+| Sentence | Actor | Transition | Notes |
+|---|---|---|---|
+| اعرب أمس وزير الخارجية الأسرائيلي اسحق شامير عن “أملد شي ان يهم السوريون والمتظمات التغريبية في لبنان مغزى عملي سلاح الجو الإسرائيلي اول من امسن ضد اهداف القوات السورية والمخربين في القطاع الشرقي من لبنسان” | Syrian forces and saboteurs |  "مغزى عملي سلاح الجو الإسرائيلي اول من امسن ضد" (The practical meaning of the Israeli air force's first strike against...) | This translates roughly to expressing a hope that Syrians and Western organizations will understand the meaning of the Israeli air force's first strike against Syrian forces and saboteurs in East Lebanon.  The hope is presented initially, but this shifts to an implicit negative action against the mentioned groups (the air strike itself).|
+| "ان عمنية الطائراتالاسرائيلية كانت بمثابة الانذار والتحذير لكي تتوقف عمليات خرقوقف النار”: | Groups violating ceasefire |  "بمثابة الانذار والتحذير" (as a warning and deterrent) | The sentence states that Israeli air operations served as a warning to stop ceasefire violations.  While not explicitly negative, the implication is that the actions are a response to negative behavior. |
+| "سلاح الجو الاسرائيني قصف امس (الاثنين) اهداقا سورية على طول الجبهة اللبنانيةء تلك الاهداف الت" | Syrian targets | "قصف امس (الاثنين)" (bombed yesterday, Monday) | This sentence is incomplete but clearly describes an attack on Syrian targets. |
+
+**Important Note:** This analysis is incomplete and limited by my inability to fully process the provided Arabic text and the malfunctioning tools.  A fluent Arabic speaker and complete text are required for a comprehensive and accurate answer.
