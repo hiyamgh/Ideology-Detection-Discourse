@@ -94,7 +94,7 @@ Action: هجوم بالبراميل المتفجرة على منطقة خاضع�
 
 Sentence: الاتفاق مع إيران قد يجعل المنطقة أكثر خطورة
 Agent: إيران
-Action:  قد يجعل المنطقة أكثر خطورة
+Action: قد يجعل المنطقة أكثر خطورة
 
 **Important notes:**
 - If no such sentence exists, return an empty list.
@@ -120,17 +120,20 @@ the victim of the actions of another group.
 Take the set of input sentences extracted from an Arabic Lebanese newspaper.
 These sentences are written in Modern Standard Arabic (MSA).
 Extract all sentences were a certain group is represented as being injured, threatened, or affected by the actions of another group.
-Both groups could be politicians, political parties, countries, institutions, or affiliations.
+Both groups should be well known: politicians, political parties, countries, institutions, or affiliations.
 
 **Output:**
 For each extracted sentence, return on separate lines:
 - Sentence: the extracted sentence containing the representation outlined above.
-- Affected Group: the group being injured, threatened, or affected by certain actions.
-- Affecting group: the group injuring, threatening, or affecting the other group.
+- Negatively affected Group: the group being injured, threatened, or affected by certain actions.
+- Affecting group: the group injuring, threatening, or affecting the other group in a negative way.
 
 **Important notes:**
 - If no such sentence exists, return an empty list.
 - Do not translate the sentences.
+- If the affected group not known, don't add the sentence to the list of results.
+- If the affecting group not known, don't add the sentence to the list of results.
+- If the effect is not negative, don't add the sentence to the list of results.
 
 **Input:**
 - **Sentences:**
@@ -141,12 +144,12 @@ Answer:
 
 extract_victimization_fewshot = """
 **Role:**
-You are a detail-oriented social scientist with years of experience analyzing media 
-discourse during armed conflicts, skilled at uncovering hidden ideologies and 
+You are a detail-oriented social scientist with years of experience analyzing media
+discourse during armed conflicts, skilled at uncovering hidden ideologies and
 helping users identify overlooked details to support informed decision-making.
 While you have a general knowledge of discourse structures used in text, your special
-skills lie in detecting parts of text where a certain group is represented as being 
-the victim of the actions of another group.     
+skills lie in detecting parts of text where a certain group is represented as being
+the victim of the actions of another group.
 
 **Task:**
 Take the set of input sentences extracted from an Arabic Lebanese newspaper.
@@ -161,9 +164,13 @@ For each extracted sentence, return on separate lines:
 - Affecting group: the group injuring, threatening, or affecting the other group.
 
 **Examples:**
-- Sentence
-- Affected Group:
-- Affecting Group: 
+- Sentence: وضع حد للابتزاز الذي يمارسه المتمردون الذين قطعوا إمدادات المياه عن سكان دمشق
+- Affected Group:  سكان دمشق
+- Affecting Group: المتمردون
+
+- Sentence: حزب الله يطلق قذائف صاروخية وأسلحة آلية من داخل وفوق المباني السكنية
+- Affected Group: داخل وفوق المباني السكنية
+- Affecting Group: حزب الله
 
 **Important notes:**
 - If no such sentence exists, return an empty list.
@@ -211,6 +218,50 @@ and each has its own praise part of the sentence.
 Answer:
 """
 
+extract_national_self_glorification_fewshot = """
+**Role:**
+You are a detail-oriented social scientist with years of experience analyzing media 
+discourse during armed conflicts, skilled at uncovering hidden ideologies and 
+helping users identify overlooked details to support informed decision-making.
+
+While you have a general knowledge of discourse structures used in text,
+your special social and psychological skills lie in detecting parts of text where a 
+certain group is being praised  for its own actions, principles, histories, or traditions.
+
+**Task:**
+Take the set of input sentences extracted from an Arabic Lebanese newspaper.
+These sentences are written in Modern Standard Arabic (MSA).
+Extract all sentences that contain forms of praise or pride about a certain group's principles or activities.
+The group could be a politician, political party, country, institution, or association.
+
+**Output:**
+For each extracted sentence return:
+- Sentence: the extracted sentence containing the form of praise.
+- Subject(s): the subject(s) that was/were praised.
+- Praise(s): the part of the sentence containing the praise(s)/pride(s).
+
+**Examples:**
+- Sentence: وكان الكمين الذي نصبه الجيش السوري ذا تأثير كبير، إذ رفع من معنويات الجيش السوري المرتفعة أصلاً، وأحبط العدو الذي ظن أن حلب أصبحت في متناوله.
+- Subject(s):  الجيش السوري
+- Praise(s):  ذا تأثير كبير, فع من معنويات الجيش السوري المرتفعة أصلاً, أحبط العدو الذي ظن أن حلب أصبحت في متناوله
+
+- Sentence: يضاف إلى ذلك انتصارات حزب الله الأخيرة في سلسلة جبال لبنان الشرقية
+- Subject(s): حزب الله
+- Praise(s): انتصارات
+
+**Important notes:**
+- If no such sentence exists, return an empty list.
+- Do not translate the sentences.
+- You can dissect long sentences into multiple smaller ones if multiple subjects exist 
+and each has its own praise part of the sentence.
+
+**Input:**
+- **Sentences:**
+{sentences}
+
+Answer:
+"""
+
 extract_dramatization = """
 **Role:**
 You are a detail-oriented social scientist with years of experience analyzing media 
@@ -232,6 +283,54 @@ For each extracted sentence output:
 - Sentence: the extracted sentence containing the exaggeration.
 - Actor: the group by which its action was described with exaggeration.
 - Exaggerated words or phrases: the loaded words/phrases that yielded to the exaggerated representation.
+
+**Important notes:**
+- If no such sentence exists, return an empty list.
+- Do not translate the sentences.
+- If the actor is not known, don't add the sentence to the list of results.
+
+**Input:**
+- **Sentences:**
+{sentences}
+
+Answer:
+"""
+
+extract_dramatization_fewshot = """
+**Role:**
+You are a detail-oriented social scientist with years of experience analyzing media 
+discourse during armed conflicts, skilled at uncovering hidden ideologies and 
+helping users identify overlooked details to support informed decision-making.
+
+While you have a general knowledge of discourse structures used in text,
+your special social and psychological skills lie in detecting parts of text that contain
+an exaggeration in a description of a group's certain actions, whether whether portrayed 
+positively or negatively.
+
+**Task:**
+Take the set of input sentences extracted from an Arabic Lebanese newspaper.
+These sentences are written in Modern Standard Arabic (MSA).
+Extract all sentences that contain an exaggeration, overreaction, or sensationalism
+in the description of a certain group's actions.
+
+**Output:**
+For each extracted sentence output:
+- Sentence: the extracted sentence containing the exaggeration.
+- Actor: the group by which its action was described with exaggeration.
+- Exaggerated words or phrases: the loaded words/phrases that yielded to the exaggerated representation.
+
+**Examples:**
+- Sentence: وكان الهجوم الذي شنته وحدات الجيش السوري وقوات حزب الله… أعمق من المتوقع، ما أدى حتى الآن إلى خسائر أقل من المتوقع.
+- Actor: الهجوم الذي شنته وحدات الجيش السوري وقوات حزب الله
+- Exaggerated words or phrases: أعمق من المتوقع, خسائر أقل من المتوقع
+
+- Sentence: الجيش السوري بعد اختراقه الناجح
+- Actor: الجيش السوري
+- Exaggerated words or phrases: اختراقه الناجح
+
+- Sentence: ولم يساهم المسلحون بشكل كبير في تهديد العاصمة السورية فحسب، بل أيضاً الشريط الحدودي اللبناني، فضلاً عن الطريق السريع الدولي الحيوي الذي يربط البلدين.
+- Actor: المسلحون
+- Exaggerated words or phrases: بشكل كبير في تهديد العاصمة السورية, الشريط الحدودي اللبناني, الطريق السريع الدولي الحيوي الذي يربط البلدين, 
 
 **Important notes:**
 - If no such sentence exists, return an empty list.
@@ -266,6 +365,53 @@ For each extracted sentence output:
 - Sentence: the extracted sentence
 - Actor: the group which was described negatively in the second part of the sentence
 - Transition/shift: the part of the sentence where there was a transition in the description of the actor.
+- Explanation justifying teh choice of the transition
+
+**Important notes:**
+- If no such sentence exists, return an empty list.
+- Do not translate the sentences.
+
+**Input:**
+- **Sentences:**
+{sentences}
+
+Answer:
+"""
+
+extract_disclaimer_fewshot = """
+**Role:**
+You are a detail-oriented social scientist with years of experience analyzing media 
+discourse during armed conflicts, skilled at uncovering hidden ideologies and 
+helping users identify overlooked details to support informed decision-making.
+While you have a general knowledge of discourse structures used in text,
+your special social and psychological skills lie in
+
+**Task:**
+Take the set of input sentences extracted from an Arabic Lebanese newspaper.
+These sentences are written in Modern Standard Arabic (MSA).
+Extract all sentences that open with a neutral or sympathetic stance toward a group, 
+signaling objectivity or goodwill, or even denying adverse feelings about the 
+certain group, but subtly shifts into a contrasting tone that emphasizes critical
+or unfavorable traits or actions.
+
+**Output:**
+For each extracted sentence output:
+- Sentence: the extracted sentence
+- Actor: the group which was described negatively in the second part of the sentence
+- Transition/shift: the part of the sentence where there was a transition in the description of the actor.
+
+**Examples:**
+- Sentence: ورغم أن أنصار الشريعة لم تعلن عن فشل أو حل مركز قيادتها، إلا أن مصدراً ميدانياً يعتقد أن مصير المركز، كما سابقيه، كان الفشل.
+- Actor: أنصار الشريعة
+- Transition/Shift: ورغم أن...إلا أن مصدراً ميدانياً يعتقد...أن مصير المركز...كان الفشل
+
+- Sentence: ويقوم التنظيم بمهاجمة محيط المطار لتخفيف الضغط على تدمر، على الرغم من أنه يدرك جيداً أنه لا يستطيع اختراق المطار.
+- Actor: التنظيم
+- Transition/Shift: ويقوم...بمهاجمة...لتخفيف الضغط على تدمر، على الرغم من أنه يدرك جيداً أنه لا يستطيع اختراق المطار
+
+- Sentence: إن الاتفاق النووي الإيراني مع القوى العالمية يعني "يومًا سعيدًا" إذا منع البلاد من الحصول على ترسانة نووية، لكن الاتفاق قد يثبت أنه سيئ إذا سمح لطهران "بإحداث الفوضى في المنطقة"
+- Actor: الاتفاق النووي الإيراني مع القوى العالمية
+- Transition/Shift: إن...يعني "يومًا سعيدًا"...لكن الاتفاق قد يثبت أنه سيئ إذا سمح لطهران "بإحداث الفوضى في المنطقة
 
 **Important notes:**
 - If no such sentence exists, return an empty list.
@@ -285,10 +431,8 @@ discourse during armed conflicts, skilled at uncovering hidden ideologies and
 helping users identify overlooked details to support informed decision-making.
 While you have a general knowledge of discourse structures used in text,
 your special social and psychological skills lie in detecting parts of text
-where a certain group is described as being inferior, particularly in a 
-political context with usage of words such as with the use of words such as:
-* opponents, immigrants, others, extremists, insurgents, armed, takfiri,
-militants, terrorists, rebels, etc.
+where a certain group is described as being inferior, particularly in 
+political contexts.
     
 **Task:**
 Take the set of input sentences extracted from an Arabic Lebanese newspaper.
@@ -315,7 +459,6 @@ For each extracted sentence output:
 Answer:
 """
 
-
 extract_LDC = """
 **Role:**
 You are a detail-oriented social scientist with years of experience analyzing media 
@@ -323,8 +466,8 @@ discourse during armed conflicts, skilled at uncovering hidden ideologies and
 helping users identify overlooked details to support informed decision-making.
 While you have a general knowledge of discourse structures used in text,
 your special social and psychological skills lie in detecting sentences that are describing
-a certain action made by certain group. The actions must be restricted 
-to any form of military practices.
+a certain action (manifesting in military practices) made by certain group, and detecting
+the level of detail associated with such descriptions.
     
 **Task:**
 Take the set of input sentences extracted from an Arabic Lebanese newspaper.

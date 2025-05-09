@@ -60,6 +60,5 @@ You will also be provided with a theme description.
 - **Sentences:**
 {sentences}
 
-expected_output: >
-A list of all extracted sentences that discuss the input theme, including their count and the original count.
+Answer:
 """
