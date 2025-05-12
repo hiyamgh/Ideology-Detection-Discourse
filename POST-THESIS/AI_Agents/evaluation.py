@@ -16,10 +16,8 @@ def mkdir(folder_name):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--discourse_structure", type=str, default="agency",
-                        help="name of teh discourse structure of interest")
-    parser.add_argument("--archive_name", type=str, default="An-Nahar",
-                        help="Name of the archive, either An-Nahar or As-Safir")
+    parser.add_argument("--discourse_structure", type=str, default="agency", help="name of the discourse structure of interest")
+    parser.add_argument("--archive_name", type=str, default="An-Nahar", help="Name of the archive, either An-Nahar or As-Safir")
     args = parser.parse_args()
 
     archive_name = args.archive_name
